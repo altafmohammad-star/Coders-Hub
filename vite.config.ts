@@ -18,6 +18,7 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
+    base: '/Coders-Hub/',
     plugins: [
       react(),
       {
