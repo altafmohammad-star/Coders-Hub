@@ -1,7 +1,7 @@
 import {
   Activity, AlertCircle, AlertTriangle, ArrowLeft, ArrowLeftRight, ArrowRight, Bell, BookOpen, Bookmark, Brain,
   Check, CheckCircle2, ChevronDown, Clock, Clock3, Code2, Compass, Cpu,
-  Copy, FileCode, Flame, Globe, GraduationCap, History, Info, Lightbulb, Loader2, LogOut, Menu, Moon, Play, Plus,
+  Copy, Download, Edit3, FileCode, Flame, Globe, GraduationCap, HelpCircle, History, Info, Layers, Lightbulb, Loader2, LogOut, Menu, MessageSquare, Moon, Play, Plus,
   RefreshCw, Search, Send, Settings, Sparkles, Sun, Target, Terminal, Trash2, Trophy, UserRound,
   WandSparkles, X, XCircle, Zap,
 } from "lucide-react";
@@ -64,7 +64,7 @@ type Account = {
   savedCourses: string[]; xp: number; streak: number;
   preferences: { theme: "light" | "dark"; aiStyle: string; notifications: boolean; language: string };
 };
-type Question = { id: string; prompt: string; options: string[]; answer: number; topic: string };
+type Question = { id: string; prompt: string; options: string[]; answer: number; topic: string; explanation?: string };
 
 const STORAGE_KEY = "coders-hub.accounts.v1";
 const SESSION_KEY = "coders-hub.session.v1";
@@ -78,6 +78,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     explore: "Explore Courses",
     mylearning: "My Learning",
     codeConverter: "AI Code Converter",
+    codeGenerator: "AI Code Generator",
     codeLab: "Code Lab",
     quiz: "Quiz",
     activity: "Activity History",
@@ -314,6 +315,7 @@ const NAV: { labelKey: string; icon: LucideIcon; page: string }[] = [
   { labelKey: "explore", icon: Compass, page: "Explore Courses" },
   { labelKey: "mylearning", icon: BookOpen, page: "My Learning" },
   { labelKey: "codeConverter", icon: WandSparkles, page: "AI Code Converter" },
+  { labelKey: "codeGenerator", icon: Cpu, page: "AI Code Generator" },
   { labelKey: "codeLab", icon: Code2, page: "Code Lab" },
   { labelKey: "quiz", icon: Target, page: "Quiz" },
   { labelKey: "activity", icon: History, page: "Activity History" },
@@ -787,16 +789,150 @@ function responseFor(question: string, account: Account, course?: Course, lesson
   };
 }
 
-const QUESTIONS: Question[] = [
-  { id: "q1", topic: "Variables", prompt: "Which statement best describes a variable?", options: ["A named place to store a value", "A loop that repeats forever", "A type of compiler", "A comment in code"], answer: 0 },
-  { id: "q2", topic: "Loops", prompt: "What is a common purpose of a loop?", options: ["Repeat a block of instructions", "Store a database schema", "Declare a class only", "Stop a program from running"], answer: 0 },
-  { id: "q3", topic: "Functions", prompt: "What does a return statement usually do?", options: ["Sends a result back to the caller", "Starts a new computer", "Repeats a loop", "Deletes a variable"], answer: 0 },
-  { id: "q4", topic: "Algorithms", prompt: "Binary search requires the input to be…", options: ["Sorted", "Encrypted", "A linked list only", "Empty"], answer: 0 },
-  { id: "q5", topic: "Recursion", prompt: "What prevents a recursive function from continuing indefinitely?", options: ["A base case", "A global variable", "A comment", "A larger input"], answer: 0 },
-  { id: "q6", topic: "Data Structures", prompt: "Which data structure follows last-in, first-out order?", options: ["Stack", "Queue", "Graph", "Hash table"], answer: 0 },
-  { id: "q7", topic: "Databases", prompt: "What is a primary key used for?", options: ["Uniquely identify a row", "Format a web page", "Repeat a query", "Encrypt a password"], answer: 0 },
-  { id: "q8", topic: "Generative AI", prompt: "What is a token in language-model processing?", options: ["A unit of text processed by the model", "A database primary key", "A computer's RAM module", "A programming loop"], answer: 0 },
-];
+const TOPIC_QUESTION_BANKS: Record<string, Question[]> = {
+  Python: [
+    { id: "py1", topic: "Python", prompt: "What is the result of bool([]) in Python?", options: ["False", "True", "None", "SyntaxError"], answer: 0, explanation: "An empty list [] evaluates to False in boolean context." },
+    { id: "py2", topic: "Python", prompt: "Which keyword is used to define a function in Python?", options: ["def", "function", "func", "define"], answer: 0, explanation: "Functions in Python are declared using the 'def' keyword." },
+    { id: "py3", topic: "Python", prompt: "Which Python data structure is immutable?", options: ["Tuple", "List", "Dictionary", "Set"], answer: 0, explanation: "Tuples cannot be modified after creation." },
+    { id: "py4", topic: "Python", prompt: "What does lst[-1] access in a Python list?", options: ["The last element", "The first element", "An invalid index error", "The length of the list"], answer: 0, explanation: "Negative indices in Python count backward from the end." },
+    { id: "py5", topic: "Python", prompt: "Which keyword is used for exception handling in Python?", options: ["try / except", "try / catch", "do / catch", "handle / error"], answer: 0, explanation: "Python uses 'try' and 'except' blocks to handle runtime exceptions." },
+    { id: "py6", topic: "Python", prompt: "What is the result of 3 * 'A' in Python?", options: ["'AAA'", "'3A'", "Error", "'A3'"], answer: 0, explanation: "Multiplying a string by an integer repeats the string text." },
+  ],
+  C: [
+    { id: "c1", topic: "C Programming", prompt: "What is the value of sizeof(char) in C according to standard?", options: ["1 byte", "2 bytes", "4 bytes", "Depends on OS architecture"], answer: 0, explanation: "The C standard specifies that sizeof(char) is guaranteed to be 1 byte." },
+    { id: "c2", topic: "C Programming", prompt: "Which operator accesses a structure field through a pointer?", options: ["->", ".", "*", "&"], answer: 0, explanation: "The arrow operator -> dereferences the pointer and accesses the member." },
+    { id: "c3", topic: "C Programming", prompt: "What does malloc() return if memory allocation fails?", options: ["NULL", "0", "-1", "void"], answer: 0, explanation: "malloc() returns NULL when physical/virtual memory allocation fails." },
+    { id: "c4", topic: "C Programming", prompt: "Which header file is required for printf() and scanf()?", options: ["<stdio.h>", "<stdlib.h>", "<math.h>", "<string.h>"], answer: 0, explanation: "<stdio.h> defines standard input/output stream functions." },
+    { id: "c5", topic: "C Programming", prompt: "What is a dangling pointer in C?", options: ["A pointer pointing to a memory location that has been freed", "A pointer initialized to NULL", "A pointer to a constant value", "A pointer that points to another pointer"], answer: 0, explanation: "Dangling pointers point to deallocated memory blocks." },
+    { id: "c6", topic: "C Programming", prompt: "Which format specifier prints a memory address in printf?", options: ["%p", "%d", "%x", "%s"], answer: 0, explanation: "%p is the standard format specifier for pointer address values." },
+  ],
+  "C++": [
+    { id: "cpp1", topic: "C++ Programming", prompt: "What is Function Overloading in C++?", options: ["Multiple functions with the same name but different parameters", "Overriding a base class method in a derived class", "Calling a function recursively", "Passing functions as arguments"], answer: 0, explanation: "Function overloading allows identical names with distinct parameter signatures." },
+    { id: "cpp2", topic: "C++ Programming", prompt: "Which STL container represents a dynamic contiguous array in C++?", options: ["std::vector", "std::list", "std::map", "std::set"], answer: 0, explanation: "std::vector stores elements contiguously and resizes dynamically." },
+    { id: "cpp3", topic: "C++ Programming", prompt: "What is a reference variable created with & in C++?", options: ["An alias for an existing variable", "A pointer that can store NULL", "A copy of memory value", "An integer address"], answer: 0, explanation: "A reference serves as an alternative name for an existing variable." },
+    { id: "cpp4", topic: "C++ Programming", prompt: "Which keyword prevents a class from being inherited in C++11?", options: ["final", "sealed", "static", "const"], answer: 0, explanation: "The final specifier prevents class inheritance and virtual method overrides." },
+    { id: "cpp5", topic: "C++ Programming", prompt: "Why should a base class destructor be virtual in C++?", options: ["To ensure derived class destructors execute when deleted via base pointer", "To make memory allocation faster", "To allow template compilation", "To prevent object instantiation"], answer: 0, explanation: "Virtual destructors ensure complete resource cleanup for polymorphic objects." },
+    { id: "cpp6", topic: "C++ Programming", prompt: "What does RAII stand for in C++ design?", options: ["Resource Acquisition Is Initialization", "Random Access In Iterators", "Runtime Architecture In Interfaces", "Recursive Algorithm Implementation"], answer: 0, explanation: "RAII binds resource allocation and release to object constructor and destructor lifecycles." },
+  ],
+  Java: [
+    { id: "java1", topic: "Java Programming", prompt: "Which memory region stores local variables and method execution frames in JVM?", options: ["Stack Memory", "Heap Memory", "Method Area", "Metaspace"], answer: 0, explanation: "Method call stack frames and primitive local variables reside in Stack Memory." },
+    { id: "java2", topic: "Java Programming", prompt: "What is the difference between == and .equals() for Java Strings?", options: ["== compares memory reference, .equals() compares string text", "== compares string text, .equals() compares memory reference", "They perform identical comparisons", "== is for strings only"], answer: 0, explanation: "== checks if two variables reference the same memory address; .equals() checks string content." },
+    { id: "java3", topic: "Java Programming", prompt: "Can an interface in Java 8+ have implemented methods?", options: ["Yes, using default or static keywords", "No, interfaces only contain abstract methods", "Yes, but only private methods", "No, interfaces are deprecated"], answer: 0, explanation: "Java 8 introduced default and static methods in interfaces." },
+    { id: "java4", topic: "Java Programming", prompt: "Which Java Collection does NOT allow duplicate elements?", options: ["Set", "List", "ArrayList", "Vector"], answer: 0, explanation: "Set interface implementations store unique elements only." },
+    { id: "java5", topic: "Java Programming", prompt: "What happens when a variable is marked final in Java?", options: ["It cannot be reassigned after initialization", "It becomes accessible by all threads statically", "It is deleted from memory", "It cannot be accessed outside the class"], answer: 0, explanation: "The final keyword prevents reassigning variable references or values." },
+    { id: "java6", topic: "Java Programming", prompt: "Which exception is thrown when accessing a null reference in Java?", options: ["NullPointerException", "IllegalArgumentException", "IndexOutOfBoundsException", "ClassCastException"], answer: 0, explanation: "Dereferencing null reference variables throws NullPointerException." },
+  ],
+  JavaScript: [
+    { id: "js1", topic: "JavaScript", prompt: "What is the main difference between let and var in JavaScript?", options: ["let is block-scoped, var is function-scoped", "let is global-scoped, var is local-scoped", "var cannot be reassigned", "There is no difference"], answer: 0, explanation: "let enforces scope inside {} blocks, whereas var hoists to function scope." },
+    { id: "js2", topic: "JavaScript", prompt: "What does typeof NaN return in JavaScript?", options: ["\"number\"", "\"NaN\"", "\"undefined\"", "\"object\""], answer: 0, explanation: "In JS specification, NaN stands for Not-a-Number but belongs to the numeric type." },
+    { id: "js3", topic: "JavaScript", prompt: "What is a Closure in JavaScript?", options: ["A function that retains access to its outer lexical scope variables", "A function that terminates the script", "A DOM event handler", "A private database connection"], answer: 0, explanation: "Closures give inner functions access to outer function scope even after outer function returns." },
+    { id: "js4", topic: "JavaScript", prompt: "What does Promise.all() do when passed an array of Promises?", options: ["Resolves when all promises fulfill or rejects if any single promise fails", "Resolves only the fastest promise", "Cancels all network requests", "Executes promises sequentially"], answer: 0, explanation: "Promise.all waits for all input promises to succeed or rejects immediately on first error." },
+    { id: "js5", topic: "JavaScript", prompt: "What is the Event Loop in JavaScript?", options: ["Runtime mechanism coordinating single-threaded async callback execution", "A loop for iterating array elements", "A DOM event listener", "An HTML parser"], answer: 0, explanation: "The Event Loop manages execution of microtasks and macrotasks on the single thread." },
+    { id: "js6", topic: "JavaScript", prompt: "What is the result of '5' + 3 and '5' - 3 in JS?", options: ["'53' and 2", "8 and 2", "'53' and '53'", "NaN and 2"], answer: 0, explanation: "The + operator performs string concatenation, while - coerces string to number." },
+  ],
+  "Data Structures": [
+    { id: "ds1", topic: "Data Structures", prompt: "Which data structure operates on First-In-First-Out (FIFO) principle?", options: ["Queue", "Stack", "Binary Search Tree", "Graph"], answer: 0, explanation: "Queues process elements in arrival order (FIFO)." },
+    { id: "ds2", topic: "Data Structures", prompt: "What is the average time complexity of key lookup in a Hash Table?", options: ["O(1)", "O(N)", "O(log N)", "O(N^2)"], answer: 0, explanation: "Hash tables offer O(1) constant average lookup time using hashing." },
+    { id: "ds3", topic: "Data Structures", prompt: "Which data structure is optimal for Breadth-First Search (BFS)?", options: ["Queue", "Stack", "Array", "Linked List"], answer: 0, explanation: "BFS uses a Queue to explore graph nodes level by level." },
+    { id: "ds4", topic: "Data Structures", prompt: "In a Binary Search Tree (BST), where are keys smaller than the root located?", options: ["Left subtree", "Right subtree", "Root node", "Leaf nodes only"], answer: 0, explanation: "BST property: left node < root < right node." },
+    { id: "ds5", topic: "Data Structures", prompt: "Which data structure handles recursion and function call stacks?", options: ["Stack", "Queue", "Heap", "Graph"], answer: 0, explanation: "Function call stacks follow Last-In-First-Out (LIFO) stack operations." },
+    { id: "ds6", topic: "Data Structures", prompt: "What is the worst-case search time in an unbalanced Binary Search Tree?", options: ["O(N)", "O(log N)", "O(1)", "O(N log N)"], answer: 0, explanation: "Degenerate unbalanced BSTs turn into linked lists with O(N) traversal." },
+  ],
+  Algorithms: [
+    { id: "algo1", topic: "Algorithms", prompt: "What is the average time complexity of Quick Sort?", options: ["O(N log N)", "O(N^2)", "O(N)", "O(log N)"], answer: 0, explanation: "Quick Sort averages O(N log N) via divide-and-conquer partitioning." },
+    { id: "algo2", topic: "Algorithms", prompt: "What precondition is required before executing Binary Search?", options: ["Array must be sorted", "Array length must be even", "Array must contain no duplicates", "Array must be empty"], answer: 0, explanation: "Binary search relies on sorted elements to halve search space." },
+    { id: "algo3", topic: "Algorithms", prompt: "What is Dynamic Programming (DP)?", options: ["Approach that stores solutions to overlapping subproblems", "A frontend UI framework", "Hardware compilation mode", "A loop with no exit condition"], answer: 0, explanation: "DP avoids redundant calculations by memoizing overlapping subproblem results." },
+    { id: "algo4", topic: "Algorithms", prompt: "What does Big O notation describe in algorithm analysis?", options: ["Upper bound on algorithm resource growth as input size scales", "Exact execution time in milliseconds", "Total lines of source code", "Compiler optimization level"], answer: 0, explanation: "Big O measures asymptotic worst-case execution time or memory scaling." },
+    { id: "algo5", topic: "Algorithms", prompt: "Which sorting algorithm is guaranteed O(N log N) worst-case time complexity and is stable?", options: ["Merge Sort", "Quick Sort", "Selection Sort", "Bubble Sort"], answer: 0, explanation: "Merge Sort guarantees O(N log N) worst-case speed and preserves equal item order." },
+    { id: "algo6", topic: "Algorithms", prompt: "What is a Greedy Algorithm?", options: ["Makes locally optimal choices at each step hoping for global optimum", "Tries all possible combinations recursively", "Uses random selections", "Always requires dynamic programming"], answer: 0, explanation: "Greedy strategy selects the immediate best choice at each step." },
+  ],
+  Databases: [
+    { id: "db1", topic: "Databases", prompt: "What is a Primary Key in relational SQL databases?", options: ["A column or set of columns that uniquely identifies each table row", "A password to log into database", "A query command", "An index configuration"], answer: 0, explanation: "Primary keys guarantee uniqueness and non-null constraint for rows." },
+    { id: "db2", topic: "Databases", prompt: "Which SQL clause filters grouped results after a GROUP BY?", options: ["HAVING", "WHERE", "ORDER BY", "LIMIT"], answer: 0, explanation: "HAVING filters aggregated group data; WHERE filters raw rows before grouping." },
+    { id: "db3", topic: "Databases", prompt: "What does Atomicity in ACID transaction properties guarantee?", options: ["All statements in a transaction complete successfully or all roll back", "The database is available 24/7", "Queries run in parallel", "Indexes are updated automatically"], answer: 0, explanation: "Atomicity ensures all-or-nothing execution for database transactions." },
+    { id: "db4", topic: "Databases", prompt: "Which JOIN returns all records from left table and matching records from right table?", options: ["LEFT JOIN", "INNER JOIN", "RIGHT JOIN", "FULL OUTER JOIN"], answer: 0, explanation: "LEFT JOIN preserves every row from left table regardless of right table match." },
+    { id: "db5", topic: "Databases", prompt: "What is Normalization in database design?", options: ["Process of structuring tables to minimize data redundancy", "Encrypting database tables", "Exporting tables to CSV", "Creating backup replicas"], answer: 0, explanation: "Normalization reduces data redundancy and improves relational integrity." },
+    { id: "db6", topic: "Databases", prompt: "What is a Foreign Key?", options: ["A column referencing the Primary Key of another table", "A primary key in a remote server", "A read-only table column", "An encrypted index key"], answer: 0, explanation: "Foreign keys enforce referential integrity between linked relational tables." },
+  ],
+  "Operating Systems": [
+    { id: "os1", topic: "Operating Systems", prompt: "What is a Deadlock in Operating Systems?", options: ["Condition where processes wait indefinitely for resources held by each other", "A CPU hardware failure", "A network timeout error", "A graphics driver crash"], answer: 0, explanation: "Deadlock occurs when processes hold resources while waiting for circular dependencies." },
+    { id: "os2", topic: "Operating Systems", prompt: "How does a Thread differ from a Process?", options: ["Threads share memory space within the same process; processes have isolated memory", "Threads have isolated memory address space", "Processes run inside threads", "Threads cannot execute concurrently"], answer: 0, explanation: "Threads belonging to a process share heap memory and file descriptors." },
+    { id: "os3", topic: "Operating Systems", prompt: "What is Virtual Memory?", options: ["Memory management technique using disk storage as an extension of RAM", "RAM allocated inside virtual machine software", "CPU L1 cache memory", "GPU video memory"], answer: 0, explanation: "Virtual memory maps virtual addresses to physical RAM or secondary disk paging." },
+    { id: "os4", topic: "Operating Systems", prompt: "What is a Page Fault?", options: ["An interrupt triggered when accessed page is not currently in physical RAM", "A hardware RAM stick failure", "A syntax error in C kernel", "A disk format error"], answer: 0, explanation: "Page fault signals the OS kernel to load the missing memory page from swap space into RAM." },
+    { id: "os5", topic: "Operating Systems", prompt: "Which CPU scheduling algorithm assigns equal time slices (quanta) in a cyclic order?", options: ["Round Robin", "First-Come First-Served", "Shortest Job First", "Priority Scheduling"], answer: 0, explanation: "Round Robin uses fixed time slices for fair preemptive CPU sharing." },
+    { id: "os6", topic: "Operating Systems", prompt: "What is Thrashing in memory management?", options: ["Excessive page swapping between RAM and disk reducing actual execution time", "Overclocking CPU frequency", "Deleting temp files", "Hard drive formatting"], answer: 0, explanation: "Thrashing occurs when the OS spends more time swapping pages than executing tasks." },
+  ],
+  "Computer Networks": [
+    { id: "net1", topic: "Computer Networks", prompt: "How many layers are in the standard OSI Reference Model?", options: ["7", "4", "5", "6"], answer: 0, explanation: "OSI model has 7 layers: Physical, Data Link, Network, Transport, Session, Presentation, Application." },
+    { id: "net2", topic: "Computer Networks", prompt: "Which transport protocol guarantees reliable, ordered packet delivery?", options: ["TCP", "UDP", "IP", "ICMP"], answer: 0, explanation: "TCP uses handshakes, ACKs, and retransmissions for reliable delivery." },
+    { id: "net3", topic: "Computer Networks", prompt: "What is the primary function of DNS (Domain Name System)?", options: ["Translates domain names (e.g. google.com) into numeric IP addresses", "Encrypts web browser data", "Routes network packets", "Allocates MAC addresses"], answer: 0, explanation: "DNS maps human-readable domains to machine-routable IP addresses." },
+    { id: "net4", topic: "Computer Networks", prompt: "Which OSI layer is responsible for IP packet routing between networks?", options: ["Network Layer (Layer 3)", "Data Link Layer (Layer 2)", "Transport Layer (Layer 4)", "Application Layer (Layer 7)"], answer: 0, explanation: "Layer 3 (Network) handles logical IP addressing and routing across subnets." },
+    { id: "net5", topic: "Computer Networks", prompt: "What is the default port number for HTTPS secure web traffic?", options: ["443", "80", "22", "8080"], answer: 0, explanation: "HTTPS operates over port 443; HTTP uses port 80." },
+    { id: "net6", topic: "Computer Networks", prompt: "What is the difference between a Router and a Network Switch?", options: ["Switches connect devices within one network; Routers connect different networks", "Routers use MAC addresses; Switches use IP addresses", "Switches are wireless only", "There is no difference"], answer: 0, explanation: "Switches connect devices inside a LAN (Layer 2); Routers route packets between networks (Layer 3)." },
+  ],
+  "Generative AI": [
+    { id: "gai1", topic: "Generative AI", prompt: "What mechanism introduced in the Transformer architecture powers modern LLMs?", options: ["Self-Attention", "Convolutional Filters", "Recurrent Loops", "Decision Trees"], answer: 0, explanation: "Self-attention computes contextual dependencies across tokens in parallel." },
+    { id: "gai2", topic: "Generative AI", prompt: "What is LLM Hallucination?", options: ["When a model outputs plausible-sounding but factually incorrect information", "When a model runs out of GPU memory", "When input prompt exceeds context limit", "When weights are corrupted"], answer: 0, explanation: "Hallucination is confident text generation lacking factual grounding." },
+    { id: "gai3", topic: "Generative AI", prompt: "What does RAG stand for in Generative AI architecture?", options: ["Retrieval-Augmented Generation", "Random Access Generator", "Recursive Agent Graph", "Realtime AI Guidance"], answer: 0, explanation: "RAG retrieves relevant domain documents to ground LLM generations." },
+    { id: "gai4", topic: "Generative AI", prompt: "What does the Temperature parameter control in LLM response sampling?", options: ["Randomness and creativity of token selection", "GPU hardware temperature", "Model training speed", "Context window size"], answer: 0, explanation: "Higher temperature (>0.7) adds creative randomness; lower (0.0) makes output deterministic." },
+    { id: "gai5", topic: "Generative AI", prompt: "What is Fine-Tuning in Large Language Models?", options: ["Training a pre-trained base model further on a domain-specific dataset", "Adjusting prompt text formatting", "Setting CPU clock speed", "Deleting model weights"], answer: 0, explanation: "Fine-tuning adapts general pre-trained models to specific tasks or domain data." },
+    { id: "gai6", topic: "Generative AI", prompt: "What is the Context Window of a Large Language Model?", options: ["The maximum number of tokens the model can process in one prompt + output interaction", "The monitor screen resolution", "The GPU memory bandwidth", "The training dataset size in GB"], answer: 0, explanation: "Context window defines the token capacity limit for single prompt and response processing." },
+  ],
+  "Agentic AI": [
+    { id: "aai1", topic: "Agentic AI", prompt: "What distinguishes Agentic AI from standard Generative AI?", options: ["Autonomous goal planning, tool execution, and environment feedback loops", "Higher image resolution generation", "Faster response generation speed", "Using simpler neural networks"], answer: 0, explanation: "Agentic AI acts autonomously with tools, reasoning, and multi-step plans to achieve objectives." },
+    { id: "aai2", topic: "Agentic AI", prompt: "What is the ReAct paradigm in AI Agent architectures?", options: ["Reasoning and Acting loop where the agent thinks, executes a tool, and observes the result", "A React.js frontend component", "A reactive event dispatcher", "A recursive decision tree"], answer: 0, explanation: "ReAct interleaves reasoning thoughts with tool actions and environment observations." },
+    { id: "aai3", topic: "Agentic AI", prompt: "What is Tool Execution / Function Calling in AI Agents?", options: ["Enabling the agent to invoke external APIs, web searches, or code compilers", "Calling JavaScript functions in web pages", "Writing code without testing", "Importing Python libraries"], answer: 0, explanation: "Tool execution lets agents interact with real-world APIs and environments." },
+    { id: "aai4", topic: "Agentic AI", prompt: "What is a Multi-Agent System?", options: ["A setup where multiple specialized AI agents collaborate, delegate, and review tasks", "A computer with multiple CPU cores", "Multiple users chatting with one model", "Running 5 browser tabs"], answer: 0, explanation: "Multi-agent systems divide complex tasks among specialized agent roles." },
+    { id: "aai5", topic: "Agentic AI", prompt: "What is Reflection / Self-Correction in AI Agent workflows?", options: ["The agent evaluates its own intermediate output for errors and corrects its approach", "Mirroring user prompts back to user", "Backing up agent memory to disk", "Undoing git commits"], answer: 0, explanation: "Reflection allows agents to evaluate draft responses and fix errors dynamically." },
+    { id: "aai6", topic: "Agentic AI", prompt: "What is Goal Decomposition in AI planning?", options: ["Breaking a high-level objective into smaller sequential sub-tasks", "Deleting completed tasks from database", "De-allocating memory after execution", "Canceling a running agent task"], answer: 0, explanation: "Decomposition splits complex goals into manageable steps." },
+  ],
+  Recursion: [
+    { id: "rec1", topic: "Recursion", prompt: "What prevents a recursive function from continuing indefinitely?", options: ["A base case", "A global variable", "A loop counter", "A larger input size"], answer: 0, explanation: "The base case defines the termination condition that stops recursive calls." },
+    { id: "rec2", topic: "Recursion", prompt: "Which data structure is implicitly used by the system to manage recursive calls?", options: ["Call Stack", "Queue", "Heap", "Hash Table"], answer: 0, explanation: "The system call stack pushes frame records for each recursive invocation." },
+    { id: "rec3", topic: "Recursion", prompt: "What happens if a recursive function lacks a base case?", options: ["Stack Overflow error", "Infinite compilation loop", "Program finishes instantly", "Memory is automatically freed"], answer: 0, explanation: "Without a base case, recursive calls fill call stack memory until Stack Overflow occurs." },
+    { id: "rec4", topic: "Recursion", prompt: "What is Tail Recursion?", options: ["When the recursive call is the last statement executed in the function", "When a function calls two other functions", "When recursion loops backward", "When recursion uses a queue"], answer: 0, explanation: "Tail recursion allows compilers to optimize call stack frames." },
+  ]
+};
+
+const QUESTIONS: Question[] = TOPIC_QUESTION_BANKS["Python"];
+
+function getQuestionsForTopic(topicStr: string): Question[] {
+  const t = topicStr.toLowerCase().trim();
+  let matched: Question[] = [];
+
+  Object.entries(TOPIC_QUESTION_BANKS).forEach(([key, qList]) => {
+    if (t.includes(key.toLowerCase()) || key.toLowerCase().includes(t)) {
+      matched.push(...qList);
+    }
+  });
+
+  if (matched.length < 3) {
+    const all = Object.values(TOPIC_QUESTION_BANKS).flat();
+    matched = all.filter(q =>
+      q.topic.toLowerCase().includes(t) ||
+      q.prompt.toLowerCase().includes(t) ||
+      t.split(" ").some(w => w.length > 3 && (q.topic.toLowerCase().includes(w) || q.prompt.toLowerCase().includes(w)))
+    );
+  }
+
+  if (matched.length < 3) {
+    matched = Object.values(TOPIC_QUESTION_BANKS).flat();
+  }
+
+  const shuffledQuestions = [...matched].sort(() => Math.random() - 0.5);
+
+  return shuffledQuestions.slice(0, 5).map((q, idx) => {
+    const originalCorrectOption = q.options[q.answer];
+    const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
+    const newAnswerIndex = shuffledOptions.indexOf(originalCorrectOption);
+    return {
+      ...q,
+      id: `${q.id}-${Date.now()}-${idx}`,
+      options: shuffledOptions,
+      answer: newAnswerIndex >= 0 ? newAnswerIndex : 0,
+    };
+  });
+}
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <div className={`rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 ${className}`}>{children}</div>;
@@ -1014,6 +1150,191 @@ function offlineCodeConverter(code: string, fromLang: string, toLang: string): {
   return { code: converted, notes };
 }
 
+type CodeGenData = {
+  problemUnderstanding: string;
+  algorithm: string[];
+  code: string;
+  lineExplanations: Array<{ line: number; code: string; explanation: string }>;
+  exampleInput: string;
+  exampleOutput: string;
+  timeComplexity: string;
+  spaceComplexity: string;
+  commonMistakes: string[];
+};
+
+function offlineCodeGenerator(problem: string, lang: string, difficulty: string, reqs: string): CodeGenData {
+  const prob = problem.trim().toLowerCase();
+  
+  if (prob.includes("prime")) {
+    if (lang === "C") {
+      const code = `#include <stdio.h>\n#include <stdbool.h>\n\nbool isPrime(int n) {\n    if (n <= 1) return false;\n    for (int i = 2; i * i <= n; i++) {\n        if (n % i == 0) return false;\n    }\n    return true;\n}\n\nint main() {\n    int num = 17;\n    if (isPrime(num)) {\n        printf("%d is a prime number.\\n", num);\n    } else {\n        printf("%d is not a prime number.\\n", num);\n    }\n    return 0;\n}`;
+      const lineExplanations = [
+        { line: 1, code: "#include <stdio.h>", explanation: "Includes standard input/output library for printf() function." },
+        { line: 2, code: "#include <stdbool.h>", explanation: "Includes boolean library so we can use true and false keywords." },
+        { line: 4, code: "bool isPrime(int n) {", explanation: "Defines function isPrime taking integer n and returning boolean true/false." },
+        { line: 5, code: "    if (n <= 1) return false;", explanation: "Numbers less than or equal to 1 are not prime numbers." },
+        { line: 6, code: "    for (int i = 2; i * i <= n; i++) {", explanation: "Loops from 2 up to square root of n to check for potential divisors." },
+        { line: 7, code: "        if (n % i == 0) return false;", explanation: "If n is divisible by i (remainder 0), it is composite (not prime)." },
+        { line: 8, code: "    }", explanation: "Closes the divisor checking for loop." },
+        { line: 9, code: "    return true;", explanation: "If no divisors were found, returns true (the number is prime)." },
+        { line: 10, code: "}", explanation: "Closes the isPrime function definition." },
+        { line: 12, code: "int main() {", explanation: "Main entry point function where program execution begins." },
+        { line: 13, code: "    int num = 17;", explanation: "Creates integer variable 'num' initialized to test value 17." },
+        { line: 14, code: "    if (isPrime(num)) {", explanation: "Calls isPrime(17) and checks if return value is true." },
+        { line: 15, code: "        printf(\"%d is a prime number.\\n\", num);", explanation: "Prints message confirming 17 is a prime number." },
+        { line: 16, code: "    } else {", explanation: "Else branch executed if number is not prime." },
+        { line: 17, code: "        printf(\"%d is not a prime number.\\n\", num);", explanation: "Prints non-prime message." },
+        { line: 18, code: "    }", explanation: "Closes conditional if-else statement." },
+        { line: 19, code: "    return 0;", explanation: "Returns 0 to signal successful program execution to the OS." },
+        { line: 20, code: "}", explanation: "Closes the main function." }
+      ];
+      return {
+        problemUnderstanding: "A prime number is a natural number greater than 1 that has no positive divisors other than 1 and itself. The program reads a number and checks if it can be evenly divided by any integer up to its square root.",
+        algorithm: [
+          "1. Read the input integer 'num'.",
+          "2. If 'num' is less than or equal to 1, return not prime.",
+          "3. Iterate divisor 'i' from 2 up to sqrt(num).",
+          "4. If 'num' is divisible by 'i' (num % i == 0), return false.",
+          "5. If loop completes without finding any divisor, return true."
+        ],
+        code,
+        lineExplanations,
+        exampleInput: "17",
+        exampleOutput: "17 is a prime number.",
+        timeComplexity: "O(sqrt(n))",
+        spaceComplexity: "O(1)",
+        commonMistakes: [
+          "Considering 0 or 1 as prime numbers (1 is neither prime nor composite).",
+          "Looping all the way to n instead of sqrt(n), causing unnecessary computation.",
+          "Forgetting to check numbers divisible by 2 or negative inputs."
+        ]
+      };
+    } else if (lang === "Python") {
+      const code = `def is_prime(n):\n    if n <= 1:\n        return False\n    for i in range(2, int(n**0.5) + 1):\n        if n % i == 0:\n            return False\n    return True\n\nnum = 17\nif is_prime(num):\n    print(f"{num} is a prime number.")\nelse:\n    print(f"{num} is not a prime number.")`;
+      const lineExplanations = [
+        { line: 1, code: "def is_prime(n):", explanation: "Defines function is_prime taking parameter n." },
+        { line: 2, code: "    if n <= 1:", explanation: "Checks if n is 1 or less (not prime)." },
+        { line: 3, code: "        return False", explanation: "Returns False immediately for numbers <= 1." },
+        { line: 4, code: "    for i in range(2, int(n**0.5) + 1):", explanation: "Loops from 2 to integer square root of n." },
+        { line: 5, code: "        if n % i == 0:", explanation: "Checks if n is evenly divisible by i." },
+        { line: 6, code: "            return False", explanation: "Returns False if divisor is found." },
+        { line: 7, code: "    return True", explanation: "Returns True if no divisors were found." },
+        { line: 9, code: "num = 17", explanation: "Sets variable num to 17." },
+        { line: 10, code: "if is_prime(num):", explanation: "Calls function and checks result." },
+        { line: 11, code: "    print(f\"{num} is a prime number.\")", explanation: "Prints formatted string confirming prime." },
+        { line: 12, code: "else:", explanation: "Else branch for composite numbers." },
+        { line: 13, code: "    print(f\"{num} is not a prime number.\")", explanation: "Prints composite message." }
+      ];
+      return {
+        problemUnderstanding: "Determines whether an integer n > 1 is prime by testing potential factors up to sqrt(n).",
+        algorithm: [
+          "1. Receive integer input n.",
+          "2. Check base case: if n <= 1 return False.",
+          "3. Loop i from 2 to int(sqrt(n)).",
+          "4. Return False if n % i == 0.",
+          "5. Return True."
+        ],
+        code,
+        lineExplanations,
+        exampleInput: "17",
+        exampleOutput: "17 is a prime number.",
+        timeComplexity: "O(sqrt(n))",
+        spaceComplexity: "O(1)",
+        commonMistakes: [
+          "Not casting n**0.5 to int in range().",
+          "Forgetting + 1 in range stop condition."
+        ]
+      };
+    }
+  }
+
+  if (prob.includes("factorial")) {
+    if (lang === "Python") {
+      const code = `def factorial(n):\n    if n < 0:\n        return "Factorial undefined for negative numbers"\n    if n == 0 or n == 1:\n        return 1\n    result = 1\n    for i in range(2, n + 1):\n        result *= i\n    return result\n\nnum = 5\nprint(f"Factorial of {num} is {factorial(num)}")`;
+      const lineExplanations = [
+        { line: 1, code: "def factorial(n):", explanation: "Defines function factorial with parameter n." },
+        { line: 2, code: "    if n < 0:", explanation: "Checks if n is negative." },
+        { line: 3, code: "        return \"Factorial undefined for negative numbers\"", explanation: "Returns error message for negative numbers." },
+        { line: 4, code: "    if n == 0 or n == 1:", explanation: "Checks base cases 0! = 1 and 1! = 1." },
+        { line: 5, code: "        return 1", explanation: "Returns 1 for base cases." },
+        { line: 6, code: "    result = 1", explanation: "Initializes accumulator variable result to 1." },
+        { line: 7, code: "    for i in range(2, n + 1):", explanation: "Loops multiplier i from 2 up to n." },
+        { line: 8, code: "        result *= i", explanation: "Multiplies result by current number i." },
+        { line: 9, code: "    return result", explanation: "Returns final calculated factorial." },
+        { line: 11, code: "num = 5", explanation: "Sets input variable num to 5." },
+        { line: 12, code: "print(f\"Factorial of {num} is {factorial(num)}\")", explanation: "Calls factorial(5) and prints 120." }
+      ];
+      return {
+        problemUnderstanding: "The factorial of a non-negative integer n (denoted as n!) is the product of all positive integers less than or equal to n.",
+        algorithm: [
+          "1. Receive integer n.",
+          "2. If n < 0, return error message.",
+          "3. If n is 0 or 1, return 1.",
+          "4. Multiply 1 * 2 * 3 * ... * n.",
+          "5. Return total product."
+        ],
+        code,
+        lineExplanations,
+        exampleInput: "5",
+        exampleOutput: "Factorial of 5 is 120",
+        timeComplexity: "O(n)",
+        spaceComplexity: "O(1)",
+        commonMistakes: [
+          "Starting accumulator result at 0 instead of 1.",
+          "Forgetting that 0! equals 1."
+        ]
+      };
+    }
+  }
+
+  // Generic Problem Solver Generator
+  const lines = [
+    `// Solution for: ${problem}`,
+    `// Language: ${lang} | Difficulty: ${difficulty}`,
+    lang === "C" ? `#include <stdio.h>\n` : lang === "C++" ? `#include <iostream>\nusing namespace std;\n` : lang === "Java" ? `public class Main {\n` : lang === "Python" ? `# ${problem}\n` : `// ${problem}\n`,
+    `// Implementation details`,
+    lang === "C" ? `int solve() {\n    printf("Executing ${problem}\\n");\n    return 0;\n}\n\nint main() {\n    solve();\n    return 0;\n}` :
+    lang === "C++" ? `void solve() {\n    cout << "Executing ${problem}" << endl;\n}\n\nint main() {\n    solve();\n    return 0;\n}` :
+    lang === "Java" ? `    public static void main(String[] args) {\n        System.out.println("Executing ${problem}");\n    }\n}` :
+    lang === "Python" ? `def solve():\n    print("Executing ${problem}")\n\nsolve()` :
+    `function solve() {\n    console.log("Executing ${problem}");\n}\nsolve();`
+  ];
+
+  const fullCode = lines.join("\n");
+  const codeLines = fullCode.split("\n");
+  const lineExplanations = codeLines.map((lineStr, idx) => ({
+    line: idx + 1,
+    code: lineStr,
+    explanation: lineStr.startsWith("//") || lineStr.startsWith("#") ? "Comment describing program structure and context." :
+      lineStr.includes("main") ? "Entry point function where program execution starts." :
+      lineStr.includes("include") || lineStr.includes("import") ? "Imports standard utility library for IO operations." :
+      lineStr.includes("printf") || lineStr.includes("cout") || lineStr.includes("print") || lineStr.includes("console.log") ? "Prints output result to terminal console." :
+      lineStr.includes("return") ? "Sends return value back to caller." :
+      "Executes statement and controls program flow."
+  }));
+
+  return {
+    problemUnderstanding: `This program solves '${problem}' in ${lang} (${difficulty} level). It parses the input requirements, executes the algorithmic logic, and outputs the result cleanly.`,
+    algorithm: [
+      `1. Read input data for ${problem}.`,
+      `2. Initialize required variables and storage.`,
+      `3. Apply algorithmic transformations based on ${difficulty} level guidelines.`,
+      `4. Output the calculated result.`
+    ],
+    code: fullCode,
+    lineExplanations,
+    exampleInput: "Sample Input Data",
+    exampleOutput: `Execution completed for ${problem}`,
+    timeComplexity: difficulty === "Advanced" ? "O(n log n)" : "O(n)",
+    spaceComplexity: "O(1)",
+    commonMistakes: [
+      "Incorrect variable initialization.",
+      "Off-by-one errors in loop boundaries.",
+      "Not validating edge case inputs."
+    ]
+  };
+}
+
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>(readAccounts);
   const [activeId, setActiveId] = useState(() => localStorage.getItem(SESSION_KEY) || "");
@@ -1027,7 +1348,9 @@ export default function App() {
   const [quizIndex, setQuizIndex] = useState(0);
   const [quizActive, setQuizActive] = useState(false);
   const [quizResult, setQuizResult] = useState<QuizAttempt | null>(null);
-  const [quizTopic, setQuizTopic] = useState("Programming fundamentals");
+  const [quizTopic, setQuizTopic] = useState("Python");
+  const [quizQuestions, setQuizQuestions] = useState<Question[]>([]);
+  const [isGeneratingAIQuiz, setIsGeneratingAIQuiz] = useState(false);
   const [code, setCode] = useState('def greet(name):\n    return f"Hello, {name}!"\n\nprint(greet("world"))\n\nfor i in range(3):\n    print(f"Loop count: {i + 1}")');
   const [codeStdin, setCodeStdin] = useState("");
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
@@ -1060,6 +1383,22 @@ print("Fibonacci(10) =", result)`
   const [agentPlan, setAgentPlan] = useState<string[] | null>(null);
   const [myTab, setMyTab] = useState("In Progress");
   const [themeVersion, setThemeVersion] = useState(0);
+
+  // AI Code Generator States
+  const [generatorProblem, setGeneratorProblem] = useState("Check whether a number is prime");
+  const [generatorLang, setGeneratorLang] = useState("C");
+  const [generatorDifficulty, setGeneratorDifficulty] = useState("Beginner");
+  const [generatorReqs, setGeneratorReqs] = useState("Use a function and explain the logic.");
+  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
+  const [generatedResult, setGeneratedResult] = useState<CodeGenData | null>(null);
+  const [selectedLineNumber, setSelectedLineNumber] = useState<number | null>(null);
+  const [isEditingGeneratedCode, setIsEditingGeneratedCode] = useState(false);
+  const [editedCode, setEditedCode] = useState("");
+  const [followupInput, setFollowupInput] = useState("");
+  const [followupHistory, setFollowupHistory] = useState<Array<{ question: string; answer: string }>>([]);
+  const [isAskingFollowup, setIsAskingFollowup] = useState(false);
+  const [executionResultGen, setExecutionResultGen] = useState<ExecutionResult | null>(null);
+  const [isExecutingGen, setIsExecutingGen] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -1356,7 +1695,86 @@ print("Fibonacci(10) =", result)`
     }));
   };
 
-  const questions = QUESTIONS;
+  const questions = quizQuestions.length > 0 ? quizQuestions : getQuestionsForTopic(quizTopic);
+
+  const startTopicQuiz = (topicName: string) => {
+    const qList = getQuestionsForTopic(topicName);
+    setQuizTopic(topicName);
+    setQuizQuestions(qList);
+    setQuizAnswers({});
+    setQuizIndex(0);
+    setQuizResult(null);
+    setQuizActive(true);
+    notify(`Started quiz for ${topicName}`);
+  };
+
+  const generateAIQuiz = async (topicName: string) => {
+    const cleanTopic = topicName.trim() || "Computer Science";
+    setQuizTopic(cleanTopic);
+    setIsGeneratingAIQuiz(true);
+    setQuizResult(null);
+
+    try {
+      const prompt = `Generate a 5-question multiple choice quiz for students on the computer science topic: "${cleanTopic}".
+Each question must have 4 clear option strings, a 0-based integer index for the correct answer (0=A, 1=B, 2=C, 3=D), and a 1-sentence explanation of why it is correct.
+
+Return ONLY a valid JSON array of objects with this schema (no markdown fences, no text before or after):
+[
+  {
+    "id": "q1",
+    "topic": "${cleanTopic}",
+    "prompt": "Question text...",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "answer": 0,
+    "explanation": "Short explanation of the correct choice."
+  }
+]`;
+
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: prompt,
+          conversationHistory: []
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const rawText = data.text || "";
+        const cleaned = rawText.replace(/```json/gi, "").replace(/```/g, "").trim();
+        try {
+          const parsed = JSON.parse(cleaned);
+          if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].prompt && parsed[0].options) {
+            const formatted: Question[] = parsed.map((item: any, idx: number) => ({
+              id: item.id || `ai-q-${idx}-${Date.now()}`,
+              topic: item.topic || cleanTopic,
+              prompt: item.prompt,
+              options: Array.isArray(item.options) ? item.options : ["Option A", "Option B", "Option C", "Option D"],
+              answer: typeof item.answer === "number" && item.answer >= 0 && item.answer < item.options.length ? item.answer : 0,
+              explanation: item.explanation || "Correct choice for this question."
+            }));
+
+            setQuizQuestions(formatted);
+            setQuizAnswers({});
+            setQuizIndex(0);
+            setQuizActive(true);
+            setIsGeneratingAIQuiz(false);
+            notify(`AI Quiz generated for ${cleanTopic}!`);
+            return;
+          }
+        } catch (e) {
+          console.warn("AI quiz parsing failed, using topic question bank:", e);
+        }
+      }
+    } catch (e) {
+      console.warn("AI quiz request failed, using topic question bank:", e);
+    }
+
+    startTopicQuiz(cleanTopic);
+    setIsGeneratingAIQuiz(false);
+  };
+
   const submitQuiz = () => {
     if (!current) return;
     const score = questions.reduce((n, q) => n + (quizAnswers[q.id] === q.answer ? 1 : 0), 0);
@@ -1404,6 +1822,9 @@ print("Fibonacci(10) =", result)`
           </Button>
           <button onClick={() => goPage("Code Lab")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white shadow-sm backdrop-blur-md transition hover:bg-white/20 hover:border-white/40 focus:outline-none focus:ring-2 focus:ring-violet-400">
             <Code2 size={16} /> {t("codeLab")}
+          </button>
+          <button onClick={() => goPage("AI Code Generator")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-violet-400/40 bg-violet-500/20 px-4 py-2.5 text-sm font-semibold text-violet-200 shadow-sm backdrop-blur-md transition hover:bg-violet-500/30 hover:border-violet-400/60 focus:outline-none focus:ring-2 focus:ring-violet-400">
+            <Cpu size={16} className="text-violet-300" /> AI Code Generator
           </button>
           <button onClick={() => goPage("AI Code Converter")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-violet-400/40 bg-violet-500/20 px-4 py-2.5 text-sm font-semibold text-violet-200 shadow-sm backdrop-blur-md transition hover:bg-violet-500/30 hover:border-violet-400/60 focus:outline-none focus:ring-2 focus:ring-violet-400">
             <WandSparkles size={16} className="text-violet-300" /> AI Code Converter
@@ -1473,9 +1894,13 @@ print("Fibonacci(10) =", result)`
         <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{t("quickActions")}</h2>
         <span className="text-xs text-slate-400">Direct Workspace Access</span>
       </div>
-      <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-4">
-        <button onClick={() => goPage("Code Lab")} className="group flex items-center gap-3.5 rounded-2xl border border-slate-200/80 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-violet-400 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
-          <div className="rounded-xl bg-violet-100 p-2.5 text-violet-700 transition group-hover:scale-110 dark:bg-violet-950 dark:text-violet-300"><Code2 size={22} /></div>
+      <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-5">
+        <button onClick={() => goPage("AI Code Generator")} className="group flex items-center gap-3.5 rounded-2xl border border-slate-200/80 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-violet-400 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+          <div className="rounded-xl bg-violet-100 p-2.5 text-violet-700 transition group-hover:scale-110 dark:bg-violet-950 dark:text-violet-300"><Cpu size={22} /></div>
+          <div><b className="block text-sm text-slate-900 dark:text-white">Code Generator</b><span className="text-xs text-slate-500 dark:text-slate-400">AI Problem Solver</span></div>
+        </button>
+        <button onClick={() => goPage("Code Lab")} className="group flex items-center gap-3.5 rounded-2xl border border-slate-200/80 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-400 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+          <div className="rounded-xl bg-indigo-100 p-2.5 text-indigo-700 transition group-hover:scale-110 dark:bg-indigo-950 dark:text-indigo-300"><Code2 size={22} /></div>
           <div><b className="block text-sm text-slate-900 dark:text-white">Code Lab</b><span className="text-xs text-slate-500 dark:text-slate-400">Multi-language IDE</span></div>
         </button>
         <button onClick={() => goPage("AI Code Converter")} className="group flex items-center gap-3.5 rounded-2xl border border-slate-200/80 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-400 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
@@ -1871,6 +2296,594 @@ print("Fibonacci(10) =", result)`
     );
   };
 
+  const renderGenerator = () => {
+    const handleGenerateCode = async () => {
+      if (!generatorProblem.trim()) {
+        notify("Please enter a program name or problem description.");
+        return;
+      }
+      setIsGeneratingCode(true);
+      setExecutionResultGen(null);
+      setSelectedLineNumber(null);
+
+      try {
+        const systemPrompt = `You are a world-class Computer Science Educator and AI Code Generator inside Coders Hub.
+Generate a high-quality, executable program for: "${generatorProblem}".
+Language: ${generatorLang}
+Difficulty level: ${generatorDifficulty}
+Specific Requirements: ${generatorReqs || "None provided"}
+
+You MUST respond strictly with valid JSON matching this schema (no markdown fences, no text before or after):
+{
+  "problemUnderstanding": "Clear explanation of the problem for a beginner student.",
+  "algorithm": ["Step 1...", "Step 2...", "Step 3..."],
+  "code": "Complete, clean, executable source code with proper line breaks.",
+  "lineExplanations": [
+    { "line": 1, "code": "line 1 string", "explanation": "Beginner-friendly explanation of line 1" }
+  ],
+  "exampleInput": "Sample input value",
+  "exampleOutput": "Expected output string",
+  "timeComplexity": "O(N)",
+  "spaceComplexity": "O(1)",
+  "commonMistakes": ["Mistake 1...", "Mistake 2..."]
+}`;
+
+        const res = await fetch("/api/ai", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: systemPrompt,
+            conversationHistory: []
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const rawText = data.text || "";
+          const cleanedText = rawText.replace(/```json/gi, "").replace(/```/g, "").trim();
+          try {
+            const parsed: CodeGenData = JSON.parse(cleanedText);
+            if (parsed && parsed.code && Array.isArray(parsed.lineExplanations)) {
+              setGeneratedResult(parsed);
+              setEditedCode(parsed.code);
+              notify("Code generated successfully!");
+              updateUser(u => ({ ...u, xp: u.xp + 10 }));
+              recordCodeAction("Code Generator", `Generated ${generatorLang} program for "${generatorProblem}"`);
+              setIsGeneratingCode(false);
+              return;
+            }
+          } catch (e) {
+            console.warn("Parsing AI response failed, falling back to offline generator:", e);
+          }
+        }
+      } catch (e) {
+        console.warn("AI generation failed, falling back to offline generator:", e);
+      }
+
+      const fallback = offlineCodeGenerator(generatorProblem, generatorLang, generatorDifficulty, generatorReqs);
+      setGeneratedResult(fallback);
+      setEditedCode(fallback.code);
+      notify("Code generated (using learning engine).");
+      updateUser(u => ({ ...u, xp: u.xp + 5 }));
+      recordCodeAction("Code Generator", `Generated ${generatorLang} program for "${generatorProblem}"`);
+      setIsGeneratingCode(false);
+    };
+
+    const handleAskFollowup = async (qText?: string) => {
+      const question = qText || followupInput;
+      if (!question.trim() || !generatedResult) return;
+      setIsAskingFollowup(true);
+      setFollowupInput("");
+
+      try {
+        const prompt = `The student has a question about this ${generatorLang} code for "${generatorProblem}":
+Code:
+${generatedResult.code}
+
+Question: ${question}
+
+Provide a concise, encouraging, beginner-friendly explanation.`;
+
+        const res = await fetch("/api/ai", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: prompt,
+            conversationHistory: followupHistory.flatMap(h => [
+              { role: "user", text: h.question },
+              { role: "assistant", text: h.answer }
+            ])
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.text) {
+            setFollowupHistory(prev => [...prev, { question, answer: data.text }]);
+            setIsAskingFollowup(false);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn("Follow-up failed, using fallback:", e);
+      }
+
+      const fallbackAnswer = `Great question! In ${generatorLang}, when solving "${generatorProblem}", this logic ensures correctness and efficiency. Select specific line numbers on the left to see precise line explanations.`;
+      setFollowupHistory(prev => [...prev, { question, answer: fallbackAnswer }]);
+      setIsAskingFollowup(false);
+    };
+
+    const downloadGeneratedCode = () => {
+      if (!generatedResult) return;
+      const currentCode = isEditingGeneratedCode ? editedCode : generatedResult.code;
+      const extMap: Record<string, string> = {
+        C: "c", "C++": "cpp", Java: "java", Python: "py", JavaScript: "js", TypeScript: "ts", Go: "go", Rust: "rs", "C#": "cs"
+      };
+      const ext = extMap[generatorLang] || "txt";
+      const filename = `${generatorProblem.toLowerCase().replace(/[^a-z0-9]+/g, "_")}.${ext}`;
+      const blob = new Blob([currentCode], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      notify(`Downloaded ${filename}`);
+    };
+
+    const runGeneratedCode = async () => {
+      if (!generatedResult) return;
+      const currentCode = isEditingGeneratedCode ? editedCode : generatedResult.code;
+      setIsExecutingGen(true);
+      setExecutionResultGen({ status: "running", stdout: "", stderr: "", exitCode: 0, language: generatorLang });
+      const res = await compileAndRunCode(currentCode, generatorLang, generatedResult.exampleInput);
+      setExecutionResultGen(res);
+      setIsExecutingGen(false);
+      if (res.status === "success") {
+        notify("Code executed successfully!");
+      } else {
+        notify(`Execution result: ${res.status}`);
+      }
+    };
+
+    const openGeneratedInCodeLab = () => {
+      if (!generatedResult) return;
+      const currentCode = isEditingGeneratedCode ? editedCode : generatedResult.code;
+      setCode(currentCode);
+      const labLangMap: Record<string, string> = {
+        C: "C", "C++": "C++", Java: "Java", Python: "Python", JavaScript: "JavaScript"
+      };
+      if (labLangMap[generatorLang]) {
+        setCodeLanguage(labLangMap[generatorLang]);
+      }
+      goPage("Code Lab");
+      notify("Opened code in Code Lab.");
+    };
+
+    const samplePresets = [
+      { problem: "Check whether a number is prime", lang: "C", difficulty: "Beginner" },
+      { problem: "Calculate Fibonacci sequence up to N terms", lang: "Python", difficulty: "Beginner" },
+      { problem: "Binary search in a sorted array", lang: "C++", difficulty: "Intermediate" },
+      { problem: "Reverse a linked list", lang: "Java", difficulty: "Intermediate" },
+      { problem: "Check for valid palindrome string", lang: "JavaScript", difficulty: "Beginner" },
+    ];
+
+    const displayCode = generatedResult ? (isEditingGeneratedCode ? editedCode : generatedResult.code) : "";
+    const codeLines = displayCode ? displayCode.split("\n") : [];
+
+    return (
+      <div className="space-y-6">
+        <PageHeading
+          eyebrow="LEARNING-FOCUSED AI GENERATOR"
+          title="AI Code Generator"
+          subtitle="Enter a program name or problem statement to generate beginner-friendly solutions with line-by-line explanations, complexity analysis, and instant execution."
+        />
+
+        {/* Input Configuration Card */}
+        <Card className="p-6 border border-slate-200/80 dark:border-slate-800 bg-gradient-to-r from-violet-900/5 via-indigo-900/5 to-transparent dark:from-violet-950/30 dark:via-indigo-950/20">
+          <div className="grid gap-5 lg:grid-cols-[1fr_auto]">
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                  Program Name / Problem Statement
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={generatorProblem}
+                    onChange={e => setGeneratorProblem(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") handleGenerateCode(); }}
+                    placeholder="e.g. Check whether a number is prime, Bubble Sort, Matrix Multiplication..."
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                  />
+                  <Sparkles size={18} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-violet-400" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                    Programming Language
+                  </label>
+                  <select
+                    value={generatorLang}
+                    onChange={e => setGeneratorLang(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                  >
+                    {["C", "C++", "Java", "Python", "JavaScript", "TypeScript", "Go", "Rust", "C#"].map(l => (
+                      <option key={l} value={l}>{l}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                    Difficulty Level
+                  </label>
+                  <select
+                    value={generatorDifficulty}
+                    onChange={e => setGeneratorDifficulty(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                  >
+                    <option value="Beginner">Beginner (Simple & Clear)</option>
+                    <option value="Intermediate">Intermediate (Standard Algorithms)</option>
+                    <option value="Advanced">Advanced (Optimized & Robust)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                  Optional Specific Requirements
+                </label>
+                <textarea
+                  value={generatorReqs}
+                  onChange={e => setGeneratorReqs(e.target.value)}
+                  placeholder="e.g. Use a separate function, handle negative inputs, avoid recursion..."
+                  rows={2}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                />
+              </div>
+
+              {/* Sample Presets */}
+              <div>
+                <span className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Try Sample Problems</span>
+                <div className="flex flex-wrap gap-2">
+                  {samplePresets.map((preset, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        setGeneratorProblem(preset.problem);
+                        setGeneratorLang(preset.lang);
+                        setGeneratorDifficulty(preset.difficulty);
+                      }}
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition"
+                    >
+                      {preset.problem} ({preset.lang})
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col justify-end">
+              <Button
+                disabled={!generatorProblem.trim() || isGeneratingCode}
+                onClick={handleGenerateCode}
+                className="w-full lg:w-auto h-12 px-6 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-md text-base"
+              >
+                {isGeneratingCode ? <Loader2 size={18} className="animate-spin" /> : <Cpu size={18} />}
+                {isGeneratingCode ? "Generating Solution..." : "Generate Solution"}
+              </Button>
+            </div>
+          </div>
+        </Card>
+
+        {/* Loading Spinner */}
+        {isGeneratingCode && (
+          <Card className="p-12 flex flex-col items-center justify-center text-center">
+            <Loader2 size={40} className="animate-spin text-violet-600 mb-4" />
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">AI Learning Engine is generating solution...</h3>
+            <p className="mt-1 text-sm text-slate-500 max-w-sm">
+              Creating clean {generatorLang} code, step-by-step algorithms, line-by-line explanations, and complexity analysis for "{generatorProblem}".
+            </p>
+          </Card>
+        )}
+
+        {/* Results Container */}
+        {!isGeneratingCode && generatedResult && (
+          <div className="space-y-6">
+
+            {/* Problem Overview & Algorithm */}
+            <div className="grid gap-5 md:grid-cols-2">
+              <Card className="p-6 border-l-4 border-l-violet-600">
+                <div className="flex items-center gap-2 font-bold text-violet-700 dark:text-violet-300 mb-2">
+                  <Brain size={18} />
+                  <span>Problem Understanding</span>
+                </div>
+                <p className="text-sm leading-6 text-slate-700 dark:text-slate-300">
+                  {generatedResult.problemUnderstanding}
+                </p>
+              </Card>
+
+              <Card className="p-6 border-l-4 border-l-indigo-600">
+                <div className="flex items-center gap-2 font-bold text-indigo-700 dark:text-indigo-300 mb-2">
+                  <Layers size={18} />
+                  <span>Step-by-Step Algorithm</span>
+                </div>
+                <ul className="space-y-1.5 text-sm text-slate-700 dark:text-slate-300">
+                  {generatedResult.algorithm.map((step, idx) => (
+                    <li key={idx} className="flex items-start gap-2">
+                      <span className="font-semibold text-indigo-600 dark:text-indigo-400 shrink-0">{idx + 1}.</span>
+                      <span>{step.replace(/^\d+\.\s*/, "")}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            </div>
+
+            {/* Dual Panel Workspace */}
+            <div className="grid gap-6 xl:grid-cols-[1.3fr_1fr]">
+              
+              {/* LEFT PANEL: Interactive Code */}
+              <Card className="flex flex-col overflow-hidden border border-slate-200/80 dark:border-slate-800">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/80 px-5 py-3.5 dark:border-slate-800 dark:bg-slate-900/80">
+                  <div className="flex items-center gap-2.5">
+                    <FileCode size={18} className="text-violet-600" />
+                    <span className="font-bold text-slate-800 dark:text-slate-100">Generated {generatorLang} Code</span>
+                    <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-semibold text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+                      {generatorDifficulty}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setIsEditingGeneratedCode(!isEditingGeneratedCode)}
+                      className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold transition ${isEditingGeneratedCode ? "bg-violet-600 text-white border-violet-600" : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200"}`}
+                    >
+                      <Edit3 size={14} /> {isEditingGeneratedCode ? "Done Editing" : "Edit Code"}
+                    </button>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(isEditingGeneratedCode ? editedCode : generatedResult.code);
+                        notify("Code copied to clipboard!");
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                    >
+                      <Copy size={14} /> Copy
+                    </button>
+                    <button
+                      onClick={downloadGeneratedCode}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                    >
+                      <Download size={14} /> Download
+                    </button>
+                  </div>
+                </div>
+
+                <div className="relative min-h-[420px] bg-[#0c0f1d] font-mono text-sm leading-6">
+                  {isEditingGeneratedCode ? (
+                    <textarea
+                      value={editedCode}
+                      onChange={e => setEditedCode(e.target.value)}
+                      className="w-full h-full min-h-[420px] resize-y bg-transparent p-5 font-mono text-sm leading-6 text-emerald-300 outline-none"
+                    />
+                  ) : (
+                    <div className="py-4">
+                      {codeLines.map((lineText, idx) => {
+                        const lineNo = idx + 1;
+                        const isSelected = selectedLineNumber === lineNo;
+                        return (
+                          <div
+                            key={idx}
+                            onClick={() => setSelectedLineNumber(isSelected ? null : lineNo)}
+                            className={`group flex items-start px-4 py-0.5 cursor-pointer transition ${isSelected ? "bg-violet-900/60 border-l-4 border-violet-500 text-white font-semibold" : "hover:bg-violet-950/40 text-slate-300"}`}
+                          >
+                            <span className={`w-10 shrink-0 select-none text-right font-mono text-xs pr-4 ${isSelected ? "text-violet-300 font-bold" : "text-slate-600 group-hover:text-slate-400"}`}>
+                              {lineNo}
+                            </span>
+                            <span className="flex-1 whitespace-pre font-mono text-xs sm:text-sm">
+                              {lineText || " "}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Code Actions Toolbar */}
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-900/80">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button disabled={isExecutingGen} onClick={runGeneratedCode} className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">
+                      {isExecutingGen ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
+                      Run Code Solution
+                    </Button>
+                    <Button variant="secondary" onClick={openGeneratedInCodeLab}>
+                      <Terminal size={15} /> Open in Code Lab
+                    </Button>
+                  </div>
+                  <Button variant="quiet" onClick={handleGenerateCode} className="text-xs text-violet-600 hover:text-violet-700">
+                    <RefreshCw size={14} /> Regenerate Solution
+                  </Button>
+                </div>
+              </Card>
+
+              {/* RIGHT PANEL: Interactive Line-by-Line Explanations */}
+              <Card className="flex flex-col overflow-hidden border border-slate-200/80 dark:border-slate-800">
+                <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-5 py-3.5 dark:border-slate-800 dark:bg-slate-900/80">
+                  <div className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-100">
+                    <HelpCircle size={18} className="text-amber-500" />
+                    <span>Line-by-Line Explanation</span>
+                  </div>
+                  <span className="text-xs text-slate-400 font-medium">Click line or card to highlight</span>
+                </div>
+
+                <div className="p-4 flex-1 overflow-y-auto max-h-[500px] space-y-3">
+                  {generatedResult.lineExplanations.map((exp) => {
+                    const isSelected = selectedLineNumber === exp.line;
+                    return (
+                      <div
+                        key={exp.line}
+                        onClick={() => setSelectedLineNumber(isSelected ? null : exp.line)}
+                        className={`p-3.5 rounded-xl border transition cursor-pointer ${isSelected ? "border-violet-500 bg-violet-50 dark:bg-violet-950/40 shadow-sm" : "border-slate-100 bg-white hover:border-slate-200 dark:border-slate-800 dark:bg-slate-900"}`}
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <span className={`inline-flex items-center rounded-md px-2 py-0.5 font-mono text-xs font-bold ${isSelected ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"}`}>
+                            Line {exp.line}
+                          </span>
+                          <code className="truncate max-w-[200px] font-mono text-xs text-slate-500">
+                            {exp.code}
+                          </code>
+                        </div>
+                        <p className="text-xs leading-5 text-slate-700 dark:text-slate-300">
+                          {exp.explanation}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+            </div>
+
+            {/* Run Output Display (if executed) */}
+            {executionResultGen && (
+              <Card className="p-5 border-l-4 border-l-emerald-500">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-100">
+                    <Terminal size={18} className="text-emerald-500" />
+                    <span>Execution Output ({generatorLang})</span>
+                  </div>
+                  <span className="text-xs text-slate-400">
+                    Status: <b className="text-emerald-600 dark:text-emerald-400">{executionResultGen.status}</b> {executionResultGen.executionTimeMs ? `(${executionResultGen.executionTimeMs}ms)` : ""}
+                  </span>
+                </div>
+                {executionResultGen.stdout && (
+                  <pre className="rounded-xl bg-slate-950 p-4 font-mono text-xs text-emerald-300 overflow-x-auto mb-2">
+                    <code>{executionResultGen.stdout}</code>
+                  </pre>
+                )}
+                {executionResultGen.stderr && (
+                  <pre className="rounded-xl bg-rose-950/80 p-4 font-mono text-xs text-rose-300 overflow-x-auto">
+                    <code>{executionResultGen.stderr}</code>
+                  </pre>
+                )}
+              </Card>
+            )}
+
+            {/* Complexity & Edge Cases Summary */}
+            <div className="grid gap-5 md:grid-cols-3">
+              <Card className="p-5">
+                <div className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-100 mb-2">
+                  <Clock3 size={18} className="text-violet-600" />
+                  <span>Time Complexity</span>
+                </div>
+                <span className="inline-block rounded-xl bg-violet-100 px-3 py-1 font-mono text-sm font-bold text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+                  {generatedResult.timeComplexity}
+                </span>
+                <p className="mt-2 text-xs text-slate-500">Execution time growth rate relative to input size.</p>
+              </Card>
+
+              <Card className="p-5">
+                <div className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-100 mb-2">
+                  <Layers size={18} className="text-indigo-600" />
+                  <span>Space Complexity</span>
+                </div>
+                <span className="inline-block rounded-xl bg-indigo-100 px-3 py-1 font-mono text-sm font-bold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                  {generatedResult.spaceComplexity}
+                </span>
+                <p className="mt-2 text-xs text-slate-500">Memory footprint required during execution.</p>
+              </Card>
+
+              <Card className="p-5">
+                <div className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-100 mb-2">
+                  <AlertTriangle size={18} className="text-amber-500" />
+                  <span>Common Student Mistakes</span>
+                </div>
+                <ul className="space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
+                  {generatedResult.commonMistakes.map((m, idx) => (
+                    <li key={idx} className="flex items-start gap-1.5">
+                      <span className="text-amber-500 font-bold">•</span>
+                      <span>{m}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            </div>
+
+            {/* Interactive Follow-up Section */}
+            <Card className="p-6 border border-slate-200/80 dark:border-slate-800">
+              <div className="flex items-center gap-2 font-bold text-lg text-slate-800 dark:text-slate-100 mb-3">
+                <MessageSquare size={20} className="text-violet-600" />
+                <span>Ask AI About This Code</span>
+              </div>
+              <p className="text-xs text-slate-500 mb-4">
+                Have questions about how this code works, how to modify it, or edge cases? Ask the AI Tutor below.
+              </p>
+
+              {/* Prompt Chips */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                {[
+                  "How can this code be optimized further?",
+                  "Explain this code like I am 10 years old",
+                  "What edge cases could break this code?",
+                  "How to write this using recursion?"
+                ].map((promptChip, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleAskFollowup(promptChip)}
+                    className="rounded-full border border-violet-200 bg-violet-50/50 px-3 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-300 transition"
+                  >
+                    💡 {promptChip}
+                  </button>
+                ))}
+              </div>
+
+              {/* Q&A History */}
+              {followupHistory.length > 0 && (
+                <div className="space-y-4 mb-4 border-t border-slate-100 dark:border-slate-800 pt-4">
+                  {followupHistory.map((h, idx) => (
+                    <div key={idx} className="space-y-2">
+                      <div className="flex justify-end">
+                        <div className="rounded-2xl bg-violet-600 px-4 py-2 text-xs font-medium text-white max-w-md">
+                          {h.question}
+                        </div>
+                      </div>
+                      <div className="flex justify-start">
+                        <div className="rounded-2xl bg-slate-100 p-3.5 text-xs leading-5 text-slate-800 dark:bg-slate-800 dark:text-slate-200 max-w-xl border border-slate-200 dark:border-slate-700">
+                          {formatInline(h.answer)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Input & Send */}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={followupInput}
+                  onChange={e => setFollowupInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") handleAskFollowup(); }}
+                  placeholder="Ask any question about this generated code..."
+                  className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                />
+                <Button disabled={!followupInput.trim() || isAskingFollowup} onClick={() => handleAskFollowup()}>
+                  {isAskingFollowup ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                  Ask AI
+                </Button>
+              </div>
+            </Card>
+
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const codeTemplates: Record<string, string> = {
     Python: '# Python 3\ndef greet(name):\n    return f"Hello, {name}!"\n\nprint(greet("world"))\n\n# Multi-line loop example\nfor i in range(3):\n    print(f"Loop count: {i + 1}")',
     JavaScript: '// JavaScript\nfunction greet(name) {\n    return "Hello, " + name + "!";\n}\n\nconsole.log(greet("world"));\n\n// Array iteration example\nconst numbers = [10, 20, 30];\nconst sum = numbers.reduce((a, b) => a + b, 0);\nconsole.log("Sum of numbers:", sum);',
@@ -2243,14 +3256,264 @@ print("Fibonacci(10) =", result)`
   </div>;
 
   const renderQuiz = () => {
-    const q = allQuizQuestions[quizIndex];
-    return <div className="mx-auto max-w-4xl space-y-6">
-      <PageHeading eyebrow="PRACTICE & ASSESS" title="Quiz" subtitle="Answer each question, then submit to calculate your score and update your learning record." />
-      {!quizActive && !quizResult && <Card className="p-6"><h2 className="text-lg font-bold">Create a quiz</h2><p className="mt-1 text-sm text-slate-500">Choose a topic. Your answers and result will be saved to your account.</p><label className="mt-5 block text-sm font-medium">Topic<input value={quizTopic} onChange={e => setQuizTopic(e.target.value)} className="mt-2 w-full rounded-xl border bg-transparent px-4 py-3" placeholder="e.g. Recursion" /></label><p className="mt-4 text-xs text-slate-500">This prototype currently uses a set of 8 sample questions covering programming fundamentals, algorithms, data structures, databases, and generative AI.</p><Button className="mt-5" onClick={() => { setQuizActive(true); setQuizAnswers({}); setQuizIndex(0); setQuizResult(null); }}>Start quiz <ArrowRight size={16}/></Button></Card>}
-      {quizActive && <Card className="p-6 sm:p-8"><div className="mb-5 flex items-center justify-between"><span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">Question {quizIndex + 1} of {allQuizQuestions.length}</span><span className="text-sm text-slate-500">{quizTopic}</span></div><div className="mb-5 h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-violet-600" style={{ width: `${((quizIndex + 1) / allQuizQuestions.length) * 100}%` }}/></div><h2 className="text-xl font-bold">{q.prompt}</h2><div className="mt-6 space-y-3">{q.options.map((option, i) => <button key={option} onClick={() => setQuizAnswers(a => ({ ...a, [q.id]: i }))} className={`flex w-full items-center gap-3 rounded-xl border p-4 text-left text-sm ${quizAnswers[q.id] === i ? "border-violet-500 bg-violet-50 text-violet-900" : "border-slate-200 hover:border-violet-300"}`}><span className="flex h-7 w-7 items-center justify-center rounded-full border text-xs">{String.fromCharCode(65 + i)}</span>{option}</button>)}</div><div className="mt-7 flex justify-between"><Button variant="secondary" disabled={quizIndex === 0} onClick={() => setQuizIndex(i => i - 1)}>Previous</Button>{quizIndex < allQuizQuestions.length - 1 ? <Button onClick={() => setQuizIndex(i => i + 1)}>Next <ArrowRight size={16}/></Button> : <Button onClick={submitQuiz}>Submit quiz <Check size={16}/></Button>}</div></Card>}
-      {quizResult && <Card className="p-7"><div className="text-center"><div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-violet-50 text-violet-700"><Trophy size={30}/></div><h2 className="text-2xl font-bold">Quiz complete</h2><p className="mt-2 text-slate-500">{quizResult.topic}</p><div className="my-5 text-5xl font-bold text-violet-700">{Math.round(quizResult.score / quizResult.total * 100)}%</div><p>{quizResult.score} correct out of {quizResult.total}</p></div><div className="mt-7 space-y-3">{allQuizQuestions.map(item => <div key={item.id} className="flex items-center justify-between rounded-xl bg-slate-50 p-3 text-sm"><span>{item.topic}</span><span className={quizResult.answers[item.id] === item.answer ? "text-emerald-700" : "text-rose-600"}>{quizResult.answers[item.id] === item.answer ? "Correct" : "Review topic"}</span></div>)}</div><Button className="mt-6" onClick={() => setQuizResult(null)}>Take another quiz</Button></Card>}
-      <Card className="p-5"><h3 className="mb-3 font-bold">Quiz history</h3>{current.quizzes.length ? <div className="space-y-2">{[...current.quizzes].reverse().map(a => <div key={a.id} className="flex justify-between border-b py-2 text-sm last:border-0"><span>{a.topic}</span><span className="font-semibold">{Math.round(a.score / a.total * 100)}% · {new Date(a.timestamp).toLocaleDateString()}</span></div>)}</div> : <p className="text-sm text-slate-500">No quizzes completed yet.</p>}</Card>
-    </div>;
+    const activeQList = questions;
+    const q = activeQList[quizIndex] || activeQList[0];
+    const availableTopics = [
+      "Python", "C", "C++", "Java", "JavaScript",
+      "Data Structures", "Algorithms", "Databases",
+      "Operating Systems", "Computer Networks", "Generative AI", "Agentic AI", "Recursion"
+    ];
+
+    return (
+      <div className="mx-auto max-w-4xl space-y-6">
+        <PageHeading
+          eyebrow="PRACTICE & ASSESS"
+          title="Quiz"
+          subtitle="Test your understanding with topic-specific questions, randomized challenges, and dynamic AI-generated quizzes."
+        />
+
+        {/* Start / Create Quiz Card */}
+        {!quizActive && !quizResult && (
+          <Card className="p-6 border border-slate-200/80 dark:border-slate-800 space-y-6">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Choose Quiz Topic</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Select a programming language or computer science topic to start a randomized quiz. Every attempt uses fresh, topic-tailored questions!
+              </p>
+            </div>
+
+            {/* Quick Preset Topic Badges */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5">
+                Popular Course Topics
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {availableTopics.map(tName => (
+                  <button
+                    key={tName}
+                    onClick={() => {
+                      setQuizTopic(tName);
+                      startTopicQuiz(tName);
+                    }}
+                    className={`rounded-xl border px-3.5 py-2 text-xs font-semibold transition ${quizTopic === tName ? "border-violet-500 bg-violet-50 text-violet-700 dark:bg-violet-950 dark:text-violet-300" : "border-slate-200 bg-white text-slate-700 hover:border-violet-300 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"}`}
+                  >
+                    {tName}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom Topic Selector & Buttons */}
+            <div className="space-y-4 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <label className="block text-sm font-semibold text-slate-800 dark:text-slate-200">
+                Or enter custom topic / concept:
+                <div className="mt-2 relative">
+                  <input
+                    value={quizTopic}
+                    onChange={e => setQuizTopic(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                    placeholder="e.g. Python, Arrays, Deadlocks, SQL Joins..."
+                  />
+                  <Target size={18} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                </div>
+              </label>
+
+              <div className="flex flex-wrap gap-3 pt-2">
+                <Button
+                  onClick={() => startTopicQuiz(quizTopic)}
+                  className="bg-violet-600 hover:bg-violet-700 text-white shadow-sm px-5 py-3"
+                >
+                  <Play size={16} /> Start Topic Quiz
+                </Button>
+
+                <Button
+                  disabled={isGeneratingAIQuiz || !quizTopic.trim()}
+                  onClick={() => generateAIQuiz(quizTopic)}
+                  variant="secondary"
+                  className="border-violet-300 bg-violet-50/50 text-violet-700 hover:bg-violet-100 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-300 px-5 py-3"
+                >
+                  {isGeneratingAIQuiz ? <Loader2 size={16} className="animate-spin text-violet-600" /> : <Sparkles size={16} className="text-violet-600" />}
+                  {isGeneratingAIQuiz ? "Generating AI Questions..." : "⚡ Generate AI Quiz with Gemini"}
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Active Quiz Question Screen */}
+        {quizActive && q && (
+          <Card className="p-6 sm:p-8 border border-slate-200/80 dark:border-slate-800">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
+              <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-bold text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+                Question {quizIndex + 1} of {activeQList.length}
+              </span>
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Topic: <b className="text-slate-800 dark:text-slate-200">{q.topic || quizTopic}</b>
+              </span>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="mb-6 h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800">
+              <div
+                className="h-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 transition-all duration-300"
+                style={{ width: `${((quizIndex + 1) / activeQList.length) * 100}%` }}
+              />
+            </div>
+
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white leading-snug">
+              {q.prompt}
+            </h2>
+
+            <div className="mt-6 space-y-3">
+              {q.options.map((option, i) => {
+                const isSelected = quizAnswers[q.id] === i;
+                return (
+                  <button
+                    key={`${option}-${i}`}
+                    onClick={() => setQuizAnswers(a => ({ ...a, [q.id]: i }))}
+                    className={`flex w-full items-center gap-3.5 rounded-xl border p-4 text-left text-sm transition ${isSelected ? "border-violet-600 bg-violet-50 text-violet-950 font-medium dark:bg-violet-950/60 dark:text-violet-200 dark:border-violet-500 shadow-sm" : "border-slate-200 bg-white hover:border-violet-300 text-slate-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"}`}
+                  >
+                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border font-mono text-xs font-bold ${isSelected ? "bg-violet-600 text-white border-violet-600" : "border-slate-300 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"}`}>
+                      {String.fromCharCode(65 + i)}
+                    </span>
+                    <span className="flex-1 leading-relaxed">{option}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-8 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-5">
+              <Button
+                variant="secondary"
+                disabled={quizIndex === 0}
+                onClick={() => setQuizIndex(i => i - 1)}
+              >
+                <ArrowLeft size={16} /> Previous
+              </Button>
+
+              {quizIndex < activeQList.length - 1 ? (
+                <Button onClick={() => setQuizIndex(i => i + 1)}>
+                  Next Question <ArrowRight size={16} />
+                </Button>
+              ) : (
+                <Button
+                  disabled={quizAnswers[q.id] === undefined}
+                  onClick={submitQuiz}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-md"
+                >
+                  Submit Quiz <Check size={16} />
+                </Button>
+              )}
+            </div>
+          </Card>
+        )}
+
+        {/* Quiz Results Screen */}
+        {quizResult && (
+          <Card className="p-6 sm:p-8 space-y-6 border border-slate-200/80 dark:border-slate-800">
+            <div className="text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+                <Trophy size={32} />
+              </div>
+              <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">Quiz Completed!</h2>
+              <p className="mt-1 text-sm text-slate-500 font-medium">Topic: {quizResult.topic}</p>
+
+              <div className="my-5 inline-block rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-6 py-3 text-4xl font-extrabold text-white shadow-lg">
+                {Math.round((quizResult.score / quizResult.total) * 100)}%
+              </div>
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                You scored {quizResult.score} out of {quizResult.total} correct (+20 XP earned)
+              </p>
+            </div>
+
+            {/* Detailed Question Review List */}
+            <div className="space-y-4 border-t border-slate-100 dark:border-slate-800 pt-6">
+              <h3 className="font-bold text-slate-900 dark:text-white text-base">Question Breakdown & Explanations</h3>
+
+              {activeQList.map((item, idx) => {
+                const studentAnsIdx = quizResult.answers[item.id];
+                const isCorrect = studentAnsIdx === item.answer;
+                return (
+                  <div
+                    key={item.id || idx}
+                    className={`p-4 rounded-xl border text-sm space-y-2 ${isCorrect ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-900/50 dark:bg-emerald-950/20" : "border-rose-200 bg-rose-50/50 dark:border-rose-900/50 dark:bg-rose-950/20"}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2 font-semibold text-slate-900 dark:text-white">
+                        <span className="shrink-0 flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-xs text-slate-800 dark:bg-slate-800 dark:text-slate-200">
+                          {idx + 1}
+                        </span>
+                        <span>{item.prompt}</span>
+                      </div>
+                      <span className={`shrink-0 text-xs font-bold px-2.5 py-1 rounded-full ${isCorrect ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" : "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300"}`}>
+                        {isCorrect ? "✓ Correct" : "✕ Review"}
+                      </span>
+                    </div>
+
+                    <div className="text-xs space-y-1 pl-8">
+                      <p className="text-slate-600 dark:text-slate-400">
+                        Your answer: <b className={isCorrect ? "text-emerald-700 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
+                          {studentAnsIdx !== undefined ? item.options[studentAnsIdx] : "No answer selected"}
+                        </b>
+                      </p>
+                      {!isCorrect && (
+                        <p className="text-emerald-700 dark:text-emerald-400 font-medium">
+                          Correct answer: <b>{item.options[item.answer]}</b>
+                        </p>
+                      )}
+                      {item.explanation && (
+                        <p className="mt-2 text-slate-600 dark:text-slate-300 italic bg-white/70 dark:bg-slate-900/70 p-2.5 rounded-lg border border-slate-200/60 dark:border-slate-800">
+                          💡 <b>Explanation:</b> {item.explanation}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-center pt-2">
+              <Button
+                onClick={() => {
+                  setQuizResult(null);
+                  startTopicQuiz(quizResult.topic);
+                }}
+                className="bg-violet-600 hover:bg-violet-700 text-white shadow-md"
+              >
+                Take Another Quiz on {quizResult.topic} <ArrowRight size={16} />
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {/* Quiz History Card */}
+        <Card className="p-5 border border-slate-200/80 dark:border-slate-800">
+          <h3 className="mb-3 font-bold text-slate-900 dark:text-white">Your Quiz History</h3>
+          {current.quizzes.length ? (
+            <div className="space-y-2">
+              {[...current.quizzes].reverse().map(a => (
+                <div key={a.id} className="flex items-center justify-between border-b border-slate-100 pb-2 text-sm last:border-0 dark:border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <Target size={15} className="text-violet-600" />
+                    <span className="font-medium text-slate-800 dark:text-slate-200">{a.topic}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="font-semibold text-violet-700 dark:text-violet-400">
+                      {Math.round((a.score / a.total) * 100)}% ({a.score}/{a.total})
+                    </span>
+                    <span className="text-xs text-slate-400">
+                      {new Date(a.timestamp).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">No quizzes completed yet.</p>
+          )}
+        </Card>
+      </div>
+    );
   };
 
   const renderAgent = () => {
@@ -2435,6 +3698,7 @@ print("Fibonacci(10) =", result)`
     : page === "Dashboard" ? renderDashboard()
     : page === "Explore Courses" ? renderExplore()
     : page === "My Learning" ? renderMyLearning()
+    : page === "AI Code Generator" ? renderGenerator()
     : page === "AI Code Converter" || page === "AI Assistant" ? renderConverter()
     : page === "Code Lab" ? renderCodeLab()
     : page === "Quiz" ? renderQuiz()

@@ -31,7 +31,7 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    base: '/Coders-Hub/',
+    base: process.env.VERCEL ? '/' : (process.env.BASE_URL || '/'),
     plugins: [
       react(),
       {
