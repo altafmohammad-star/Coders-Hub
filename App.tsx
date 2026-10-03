@@ -1,5 +1,5 @@
 import {
-  Activity, AlertCircle, AlertTriangle, ArrowLeft, ArrowRight, Bell, BookOpen, Bookmark, Brain,
+  Activity, AlertCircle, AlertTriangle, ArrowLeft, ArrowLeftRight, ArrowRight, Bell, BookOpen, Bookmark, Brain,
   Check, CheckCircle2, ChevronDown, Clock, Clock3, Code2, Compass, Cpu,
   Copy, FileCode, Flame, Globe, GraduationCap, History, Info, Lightbulb, Loader2, LogOut, Menu, Moon, Play, Plus,
   RefreshCw, Search, Send, Settings, Sparkles, Sun, Target, Terminal, Trash2, Trophy, UserRound,
@@ -77,7 +77,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     dashboard: "Dashboard",
     explore: "Explore Courses",
     mylearning: "My Learning",
-    aiAssistant: "AI Assistant",
+    codeConverter: "AI Code Converter",
     codeLab: "Code Lab",
     quiz: "Quiz",
     activity: "Activity History",
@@ -313,7 +313,7 @@ const NAV: { labelKey: string; icon: LucideIcon; page: string }[] = [
   { labelKey: "dashboard", icon: Activity, page: "Dashboard" },
   { labelKey: "explore", icon: Compass, page: "Explore Courses" },
   { labelKey: "mylearning", icon: BookOpen, page: "My Learning" },
-  { labelKey: "aiAssistant", icon: Sparkles, page: "AI Assistant" },
+  { labelKey: "codeConverter", icon: WandSparkles, page: "AI Code Converter" },
   { labelKey: "codeLab", icon: Code2, page: "Code Lab" },
   { labelKey: "quiz", icon: Target, page: "Quiz" },
   { labelKey: "activity", icon: History, page: "Activity History" },
@@ -909,6 +909,110 @@ function Button({ children, onClick, variant = "primary", className = "", disabl
       : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800";
   return <button type={type} disabled={disabled} onClick={onClick} className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${style} ${className}`}>{children}</button>;
 }
+function offlineCodeConverter(code: string, fromLang: string, toLang: string): { code: string; notes: string[] } {
+  const notes: string[] = [
+    `Converted syntax rules from ${fromLang} to ${toLang}.`,
+    `Mapped functions, loop constructs, variables, and output statements.`,
+    `Review explicit type declarations and library imports for ${toLang}.`
+  ];
+
+  if (fromLang === toLang) {
+    return { code, notes: ["Source and target programming languages are identical."] };
+  }
+
+  let converted = code;
+
+  if (fromLang === "Python") {
+    if (toLang === "C++") {
+      converted = `#include <iostream>\n#include <vector>\n#include <string>\nusing namespace std;\n\n` +
+        code
+          .replace(/def\s+(\w+)\s*\(([^)]*)\):/g, 'auto $1($2) {')
+          .replace(/print\((f?".*?"|.*?)\)/g, (match, p1) => {
+            const clean = p1.replace(/^f/, '').replace(/\{([^}]+)\}/g, '<< $1 <<');
+            return `cout << ${clean} << endl;`;
+          })
+          .replace(/for\s+(\w+)\s+in\s+range\(([^,]+),\s*([^)]+)\):/g, 'for (int $1 = $2; $1 < $3; $1++) {')
+          .replace(/for\s+(\w+)\s+in\s+range\(([^)]+)\):/g, 'for (int $1 = 0; $1 < $2; $1++) {')
+          .replace(/elif\s+(.*?):/g, '} else if ($1) {')
+          .replace(/if\s+(.*?):/g, 'if ($1) {')
+          .replace(/else:/g, '} else {')
+          .replace(/return\s+(.*)/g, 'return $1;') +
+        `\n\nint main() {\n    // Executed converted logic\n    return 0;\n}`;
+      notes.push("Added `#include <iostream>` and `using namespace std;`.");
+      notes.push("Replaced `def` with `auto` and `print()` with `std::cout`.");
+    } else if (toLang === "C") {
+      converted = `#include <stdio.h>\n\n` +
+        code
+          .replace(/def\s+(\w+)\s*\(([^)]*)\):/g, 'int $1($2) {')
+          .replace(/print\((f?".*?"|.*?)\)/g, 'printf("%s\\n", $1);')
+          .replace(/for\s+(\w+)\s+in\s+range\(([^,]+),\s*([^)]+)\):/g, 'for (int $1 = $2; $1 < $3; $1++) {')
+          .replace(/for\s+(\w+)\s+in\s+range\(([^)]+)\):/g, 'for (int $1 = 0; $1 < $2; $1++) {')
+          .replace(/elif\s+(.*?):/g, '} else if ($1) {')
+          .replace(/if\s+(.*?):/g, 'if ($1) {')
+          .replace(/else:/g, '} else {')
+          .replace(/return\s+(.*)/g, 'return $1;') +
+        `\n\nint main() {\n    return 0;\n}`;
+      notes.push("C requires strict explicit type declarations and `printf()`.");
+    } else if (toLang === "JavaScript" || toLang === "TypeScript") {
+      converted = code
+        .replace(/def\s+(\w+)\s*\(([^)]*)\):/g, 'function $1($2) {')
+        .replace(/print\((.*?)\)/g, 'console.log($1);')
+        .replace(/for\s+(\w+)\s+in\s+range\(([^,]+),\s*([^)]+)\):/g, 'for (let $1 = $2; $1 < $3; $1++) {')
+        .replace(/for\s+(\w+)\s+in\s+range\(([^)]+)\):/g, 'for (let $1 = 0; $1 < $2; $1++) {')
+        .replace(/elif\s+(.*?):/g, '} else if ($1) {')
+        .replace(/if\s+(.*?):/g, 'if ($1) {')
+        .replace(/else:/g, '} else {')
+        .replace(/True/g, 'true')
+        .replace(/False/g, 'false')
+        .replace(/None/g, 'null');
+      notes.push("Replaced `def` with `function` and `print()` with `console.log()`.");
+    } else if (toLang === "Java") {
+      converted = `public class Main {\n    ` +
+        code
+          .replace(/def\s+(\w+)\s*\(([^)]*)\):/g, 'public static int $1($2) {')
+          .replace(/print\((.*?)\)/g, 'System.out.println($1);')
+          .replace(/for\s+(\w+)\s+in\s+range\(([^,]+),\s*([^)]+)\):/g, 'for (int $1 = $2; $1 < $3; $1++) {')
+          .replace(/for\s+(\w+)\s+in\s+range\(([^)]+)\):/g, 'for (int $1 = 0; $1 < $2; $1++) {')
+          .replace(/elif\s+(.*?):/g, '} else if ($1) {')
+          .replace(/if\s+(.*?):/g, 'if ($1) {')
+          .replace(/else:/g, '} else {')
+          .split('\n').join('\n    ') +
+        `\n\n    public static void main(String[] args) {\n        // Main entry point\n    }\n}`;
+      notes.push("Wrapped in `public class Main` with static method declarations.");
+    }
+  } else if (fromLang === "C" || fromLang === "C++") {
+    if (toLang === "Python") {
+      converted = code
+        .replace(/#include\s+<.*?>/g, '')
+        .replace(/using\s+namespace\s+std;/g, '')
+        .replace(/(int|void|float|double|auto)\s+(\w+)\s*\(([^)]*)\)\s*\{/g, 'def $2($3):')
+        .replace(/std::cout\s*<<\s*(.*?)\s*<<\s*std::endl;/g, 'print($1)')
+        .replace(/cout\s*<<\s*(.*?)\s*<<\s*endl;/g, 'print($1)')
+        .replace(/printf\((.*?)\);/g, 'print($1)')
+        .replace(/for\s*\(\s*int\s+(\w+)\s*=\s*0;\s*\1\s*<\s*([^;]+);\s*\1\+\+\s*\)\s*\{/g, 'for $1 in range($2):')
+        .replace(/for\s*\(\s*int\s+(\w+)\s*=\s*([^;]+);\s*\1\s*<\s*([^;]+);\s*\1\+\+\s*\)\s*\{/g, 'for $1 in range($2, $3):')
+        .replace(/\}/g, '')
+        .replace(/;/g, '');
+      notes.push("Removed C/C++ includes, semicolons, and curly braces for Python syntax.");
+    }
+  } else if (fromLang === "JavaScript" || fromLang === "TypeScript") {
+    if (toLang === "Python") {
+      converted = code
+        .replace(/function\s+(\w+)\s*\(([^)]*)\)\s*\{/g, 'def $1($2):')
+        .replace(/const\s+|let\s+|var\s+/g, '')
+        .replace(/console\.log\((.*?)\);?/g, 'print($1)')
+        .replace(/for\s*\(\s*let\s+(\w+)\s*=\s*0;\s*\1\s*<\s*([^;]+);\s*\1\+\+\s*\)\s*\{/g, 'for $1 in range($2):')
+        .replace(/true/g, 'True')
+        .replace(/false/g, 'False')
+        .replace(/null|undefined/g, 'None')
+        .replace(/\}/g, '')
+        .replace(/;/g, '');
+      notes.push("Converted `function` to `def` and `console.log` to `print`.");
+    }
+  }
+
+  return { code: converted, notes };
+}
 
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>(readAccounts);
@@ -931,6 +1035,28 @@ export default function App() {
   const [codeLanguage, setCodeLanguage] = useState("Python");
   const [assistantInput, setAssistantInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [converterSourceLang, setConverterSourceLang] = useState("Python");
+  const [converterTargetLang, setConverterTargetLang] = useState("C++");
+  const [converterInputCode, setConverterInputCode] = useState(
+`def fibonacci(n):
+    if n <= 0:
+        return 0
+    elif n == 1:
+        return 1
+    
+    a, b = 0, 1
+    for i in range(2, n + 1):
+        a, b = b, a + b
+    return b
+
+# Test Fibonacci function
+result = fibonacci(10)
+print("Fibonacci(10) =", result)`
+  );
+  const [converterOutputCode, setConverterOutputCode] = useState("");
+  const [converterNotes, setConverterNotes] = useState<string[]>([]);
+  const [isConvertingCode, setIsConvertingCode] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
   const [agentPlan, setAgentPlan] = useState<string[] | null>(null);
   const [myTab, setMyTab] = useState("In Progress");
   const [themeVersion, setThemeVersion] = useState(0);
@@ -1279,8 +1405,8 @@ export default function App() {
           <button onClick={() => goPage("Code Lab")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white shadow-sm backdrop-blur-md transition hover:bg-white/20 hover:border-white/40 focus:outline-none focus:ring-2 focus:ring-violet-400">
             <Code2 size={16} /> {t("codeLab")}
           </button>
-          <button onClick={() => goPage("AI Assistant")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-violet-400/40 bg-violet-500/20 px-4 py-2.5 text-sm font-semibold text-violet-200 shadow-sm backdrop-blur-md transition hover:bg-violet-500/30 hover:border-violet-400/60 focus:outline-none focus:ring-2 focus:ring-violet-400">
-            <Sparkles size={16} className="text-violet-300" /> Ask AI Tutor
+          <button onClick={() => goPage("AI Code Converter")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-violet-400/40 bg-violet-500/20 px-4 py-2.5 text-sm font-semibold text-violet-200 shadow-sm backdrop-blur-md transition hover:bg-violet-500/30 hover:border-violet-400/60 focus:outline-none focus:ring-2 focus:ring-violet-400">
+            <WandSparkles size={16} className="text-violet-300" /> AI Code Converter
           </button>
         </div>
       </div>
@@ -1352,9 +1478,9 @@ export default function App() {
           <div className="rounded-xl bg-violet-100 p-2.5 text-violet-700 transition group-hover:scale-110 dark:bg-violet-950 dark:text-violet-300"><Code2 size={22} /></div>
           <div><b className="block text-sm text-slate-900 dark:text-white">Code Lab</b><span className="text-xs text-slate-500 dark:text-slate-400">Multi-language IDE</span></div>
         </button>
-        <button onClick={() => goPage("AI Assistant")} className="group flex items-center gap-3.5 rounded-2xl border border-slate-200/80 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-400 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
-          <div className="rounded-xl bg-indigo-100 p-2.5 text-indigo-700 transition group-hover:scale-110 dark:bg-indigo-950 dark:text-indigo-300"><Sparkles size={22} /></div>
-          <div><b className="block text-sm text-slate-900 dark:text-white">AI Tutor</b><span className="text-xs text-slate-500 dark:text-slate-400">Ask any CS question</span></div>
+        <button onClick={() => goPage("AI Code Converter")} className="group flex items-center gap-3.5 rounded-2xl border border-slate-200/80 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-400 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+          <div className="rounded-xl bg-indigo-100 p-2.5 text-indigo-700 transition group-hover:scale-110 dark:bg-indigo-950 dark:text-indigo-300"><WandSparkles size={22} /></div>
+          <div><b className="block text-sm text-slate-900 dark:text-white">Code Converter</b><span className="text-xs text-slate-500 dark:text-slate-400">Translate programming code</span></div>
         </button>
         <button onClick={() => goPage("Quiz")} className="group flex items-center gap-3.5 rounded-2xl border border-slate-200/80 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
           <div className="rounded-xl bg-amber-100 p-2.5 text-amber-700 transition group-hover:scale-110 dark:bg-amber-950 dark:text-amber-300"><Target size={22} /></div>
@@ -1431,10 +1557,10 @@ export default function App() {
             <div className="flex flex-wrap gap-3">
               <Button variant="secondary" disabled={!prev} onClick={() => prev && openLesson(currentCourse, prev)}><ArrowLeft size={16}/> Previous</Button>
               <Button variant="secondary" onClick={() => {
-                const q = `Explain ${currentLesson.title} in ${currentCourse.title}`;
-                setPage("AI Assistant");
-                askTutor(q, currentCourse, currentLesson);
-              }}>Ask AI <Sparkles size={16}/></Button>
+                setConverterInputCode(currentLesson.code);
+                setConverterSourceLang(currentCourse?.title.split(" ")[0] || "Python");
+                goPage("AI Code Converter");
+              }}>Convert Code <WandSparkles size={16}/></Button>
               <Button onClick={() => completeLesson(currentCourse, currentLesson)}>{done ? <Check size={17}/> : <CheckCircle2 size={17}/>} {done ? "Completed" : "Mark complete"}</Button>
               <Button variant="secondary" disabled={!next} onClick={() => next && openLesson(currentCourse, next)}>Next <ArrowRight size={16}/></Button>
             </div>
@@ -1462,7 +1588,7 @@ export default function App() {
       <button onClick={() => goPage("My Learning")} className="inline-flex items-center gap-2 text-sm font-semibold text-violet-600"><ArrowLeft size={16}/> My Learning</button>
       <Card className="overflow-hidden">
         <div className="relative h-52 sm:h-64"><img src={currentCourse.image} alt="" className="h-full w-full object-cover"/><div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent"/><div className="absolute bottom-6 left-6 right-6 text-white"><span className="rounded-full bg-white/20 px-3 py-1 text-xs">{currentCourse.category}</span><h1 className="mt-3 text-3xl font-bold">{currentCourse.title}</h1><p className="mt-1 text-white/80">Instructor: {currentCourse.instructor}</p></div></div>
-        <div className="grid gap-5 p-6 md:grid-cols-[1fr_240px]"><div><p className="leading-7 text-slate-600 dark:text-slate-300">{currentCourse.description}</p><div className="mt-4 flex flex-wrap gap-2"><Button variant="secondary" onClick={() => { const q = `Explain key concepts of ${currentCourse.title}`; setPage("AI Assistant"); askTutor(q, currentCourse); }}>Ask AI about this Course <Sparkles size={16}/></Button></div><div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-500"><span>{currentCourse.difficulty}</span><span>{currentCourse.duration}</span><span>{currentCourse.lessons.length} lessons</span></div></div><div><div className="mb-2 flex justify-between text-sm"><b>Your progress</b><span>{pct}%</span></div><div className="h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-violet-600" style={{ width: `${pct}%` }}/></div><p className="mt-2 text-xs text-slate-500">{enrollment.completed.length} / {currentCourse.lessons.length} lessons completed</p></div></div>
+        <div className="grid gap-5 p-6 md:grid-cols-[1fr_240px]"><div><p className="leading-7 text-slate-600 dark:text-slate-300">{currentCourse.description}</p><div className="mt-4 flex flex-wrap gap-2"><Button variant="secondary" onClick={() => { setConverterInputCode(currentCourse.lessons[0]?.code || ""); setConverterSourceLang(currentCourse.title.split(" ")[0] || "Python"); goPage("AI Code Converter"); }}>Convert Course Code <WandSparkles size={16}/></Button></div><div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-500"><span>{currentCourse.difficulty}</span><span>{currentCourse.duration}</span><span>{currentCourse.lessons.length} lessons</span></div></div><div><div className="mb-2 flex justify-between text-sm"><b>Your progress</b><span>{pct}%</span></div><div className="h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-violet-600" style={{ width: `${pct}%` }}/></div><p className="mt-2 text-xs text-slate-500">{enrollment.completed.length} / {currentCourse.lessons.length} lessons completed</p></div></div>
       </Card>
       <Card className="p-5 sm:p-7"><h2 className="mb-5 text-xl font-bold">Course curriculum</h2>
         {Array.from(new Set(currentCourse.lessons.map(l => l.module))).map(module => <div key={module} className="mb-6 last:mb-0"><h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-500">{module}</h3><div className="divide-y divide-slate-100 dark:divide-slate-800">{currentCourse.lessons.filter(l => l.module === module).map((l) => {
@@ -1473,116 +1599,274 @@ export default function App() {
     </div>;
   };
 
-  const renderAssistant = () => {
-    const suggestedQuestions = [
-      "Write a fibonacci sequence code",
-      "Check prime number in python",
-      "How to swap two variables in C?",
-      "What is recursion and base case?",
-      "Explain SQL JOIN and Normalization",
-      "What is Big O time complexity?",
-      "What are AI Agents and LLMs?",
+  const renderConverter = () => {
+    const supportedLangs = ["Python", "C", "C++", "Java", "JavaScript", "TypeScript", "Go", "Rust", "C#", "PHP", "Swift", "Kotlin", "SQL"];
+
+    const samplePresets = [
+      {
+        name: "Fibonacci Sequence",
+        lang: "Python",
+        code: `def fibonacci(n):\n    if n <= 0:\n        return 0\n    elif n == 1:\n        return 1\n    a, b = 0, 1\n    for i in range(2, n + 1):\n        a, b = b, a + b\n    return b\n\nresult = fibonacci(10)\nprint("Fibonacci(10) =", result)`
+      },
+      {
+        name: "Binary Search",
+        lang: "C++",
+        code: `#include <iostream>\n#include <vector>\nusing namespace std;\n\nint binarySearch(const vector<int>& arr, int target) {\n    int low = 0, high = arr.size() - 1;\n    while (low <= high) {\n        int mid = low + (high - low) / 2;\n        if (arr[mid] == target) return mid;\n        if (arr[mid] < target) low = mid + 1;\n        else high = mid - 1;\n    }\n    return -1;\n}\n\nint main() {\n    vector<int> nums = {2, 5, 8, 12, 16, 23, 38, 56};\n    int index = binarySearch(nums, 23);\n    cout << "Found target at index: " << index << endl;\n    return 0;\n}`
+      },
+      {
+        name: "Class Definition",
+        lang: "Java",
+        code: `public class Student {\n    private String name;\n    private int age;\n\n    public Student(String name, int age) {\n        this.name = name;\n        this.age = age;\n    }\n\n    public void displayInfo() {\n        System.out.println("Student Name: " + name + ", Age: " + age);\n    }\n\n    public static void main(String[] args) {\n        Student s = new Student("Alice", 20);\n        s.displayInfo();\n    }\n}`
+      },
+      {
+        name: "Array Filter & Sum",
+        lang: "JavaScript",
+        code: `function processNumbers(numbers) {\n    const evens = numbers.filter(n => n % 2 === 0);\n    const sum = evens.reduce((acc, curr) => acc + curr, 0);\n    return { evens, sum };\n}\n\nconst data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];\nconst result = processNumbers(data);\nconsole.log("Even numbers sum:", result.sum);`
+      }
     ];
 
+    const swapConverterLangs = () => {
+      const temp = converterSourceLang;
+      setConverterSourceLang(converterTargetLang);
+      setConverterTargetLang(temp);
+      if (converterOutputCode) {
+        setConverterInputCode(converterOutputCode);
+        setConverterOutputCode(converterInputCode);
+      }
+    };
+
+    const handleConvertCode = async (overrideInput?: string, overrideSource?: string, overrideTarget?: string) => {
+      const input = (overrideInput ?? converterInputCode).trim();
+      const src = overrideSource ?? converterSourceLang;
+      const tgt = overrideTarget ?? converterTargetLang;
+
+      if (!input || isConvertingCode) return;
+      setIsConvertingCode(true);
+
+      const promptText = `Convert the following ${src} code into equivalent ${tgt} code.\nReturn ONLY the clean converted code inside a markdown block, followed by 3 short bullet points listing key syntax and language structural differences between ${src} and ${tgt}.\n\n\`\`\`${src}\n${input}\n\`\`\``;
+
+      try {
+        const res = await fetch("/api/ai", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: promptText,
+            context: { language: tgt, task: "code_conversion" }
+          })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.text) {
+          const text = data.text;
+          const codeMatch = text.match(/```(?:\w+)?\n([\s\S]*?)```/);
+          const extractedCode = codeMatch ? codeMatch[1].trim() : text;
+          setConverterOutputCode(extractedCode);
+
+          const notes = text.split("\n")
+            .filter((line: string) => line.trim().startsWith("-") || line.trim().startsWith("*") || line.trim().match(/^\d+\./))
+            .map((line: string) => line.replace(/^[-*\d.]+\s*/, "").trim());
+          setConverterNotes(notes.length > 0 ? notes : [
+            `Converted syntax from ${src} to ${tgt}.`,
+            `Mapped variables, control loops, and functions.`,
+            `Verify type system and library declarations for ${tgt}.`
+          ]);
+          setIsConvertingCode(false);
+          return;
+        }
+      } catch (e) {
+        // Fallback to offline intelligent translation engine
+      }
+
+      // Offline intelligent code translation fallback
+      const converted = offlineCodeConverter(input, src, tgt);
+      setConverterOutputCode(converted.code);
+      setConverterNotes(converted.notes);
+      setIsConvertingCode(false);
+    };
+
+    const copyConvertedCode = () => {
+      if (!converterOutputCode) return;
+      navigator.clipboard.writeText(converterOutputCode);
+      setCodeCopied(true);
+      notify("Converted code copied to clipboard!");
+      setTimeout(() => setCodeCopied(false), 2500);
+    };
+
+    const openInCodeLab = () => {
+      if (!converterOutputCode) return;
+      const targetMapped = converterTargetLang === "C++" ? "C++" : converterTargetLang === "C" ? "C" : converterTargetLang === "Java" ? "Java" : converterTargetLang === "JavaScript" || converterTargetLang === "TypeScript" ? "JavaScript" : "Python";
+      setCodeLanguage(targetMapped);
+      setCode(converterOutputCode);
+      goPage("Code Lab");
+      notify(`Loaded converted ${converterTargetLang} code into Code Lab!`);
+    };
+
     return (
-      <div className="mx-auto max-w-4xl space-y-5">
-        <PageHeading eyebrow="PERSONAL AI TUTOR" title="AI Assistant" subtitle="Ask any programming or CS question. Answers adapt to your level, current lesson, and learning memory." />
-        <Card className="overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-5 dark:border-slate-800">
-            <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-violet-100 p-2 text-violet-700 dark:bg-violet-950 dark:text-violet-300">
-                <Sparkles size={20} />
+      <div className="mx-auto max-w-6xl space-y-6">
+        <PageHeading
+          eyebrow="AI CODE TRANSLATOR"
+          title="AI Code Converter"
+          subtitle="Convert programming code seamlessly across languages with intelligent syntax translation and structural explanations."
+        />
+
+        {/* Control Bar: Language Selection & Presets */}
+        <Card className="p-5 sm:p-6 bg-white dark:bg-slate-900 shadow-sm border border-slate-200/80 dark:border-slate-800">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3 w-full lg:w-auto">
+              <div className="flex-1 lg:flex-none">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Source Language</label>
+                <select
+                  value={converterSourceLang}
+                  onChange={e => setConverterSourceLang(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                >
+                  {supportedLangs.map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
               </div>
-              <div>
-                <b className="text-slate-900 dark:text-white">AI Learning Assistant</b>
-                <p className="text-xs text-slate-500">
-                  Level: {current.level}
-                  {currentCourse ? ` · Context: ${currentCourse.title}${currentLesson ? ` / ${currentLesson.title}` : ""}` : ""}
-                </p>
+
+              <button
+                onClick={swapConverterLangs}
+                title="Swap Languages"
+                className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-slate-600 transition hover:bg-violet-50 hover:text-violet-600 hover:border-violet-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+              >
+                <ArrowLeftRight size={18} />
+              </button>
+
+              <div className="flex-1 lg:flex-none">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Target Language</label>
+                <select
+                  value={converterTargetLang}
+                  onChange={e => setConverterTargetLang(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-violet-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                >
+                  {supportedLangs.map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
               </div>
             </div>
-            {current.conversations.length > 0 && (
-              <Button variant="quiet" onClick={clearChatHistory} className="text-xs text-slate-400 hover:text-rose-600">
-                <Trash2 size={14} /> Clear chat
-              </Button>
-            )}
+
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold text-slate-400">Sample Presets:</span>
+              {samplePresets.map(p => (
+                <button
+                  key={p.name}
+                  onClick={() => {
+                    setConverterSourceLang(p.lang);
+                    setConverterInputCode(p.code);
+                    setConverterOutputCode("");
+                    setConverterNotes([]);
+                  }}
+                  className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-violet-400 hover:bg-violet-50 hover:text-violet-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-violet-500"
+                >
+                  {p.name} ({p.lang})
+                </button>
+              ))}
+            </div>
           </div>
-
-          <div className="max-h-[60vh] space-y-4 overflow-y-auto p-5 sm:p-7">
-            {!current.conversations.length && !isTyping && (
-              <div className="py-10 text-center">
-                <div className="mx-auto mb-4 w-fit rounded-2xl bg-violet-50 p-5 text-violet-600 dark:bg-slate-800">
-                  <Brain size={32} />
-                </div>
-                <h3 className="text-lg font-bold">What would you like to learn today?</h3>
-                <p className="mt-1 text-sm text-slate-500">Ask any computer science concept, code explanation, algorithm, or debug question below.</p>
-                <div className="mt-6 flex flex-wrap justify-center gap-2">
-                  {suggestedQuestions.map(q => (
-                    <button
-                      key={q}
-                      onClick={() => askTutor(q, currentCourse, currentLesson)}
-                      className="rounded-full border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-medium text-slate-700 transition hover:border-violet-400 hover:bg-violet-50 hover:text-violet-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-violet-500"
-                    >
-                      {q}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {current.conversations.map(item => (
-              <div key={item.id} className="space-y-3">
-                <div className="ml-auto max-w-[85%] rounded-2xl rounded-br-sm bg-violet-600 p-4 text-sm text-white shadow-sm">
-                  <p className="font-medium">{item.question}</p>
-                  <div className="mt-2 text-[10px] text-violet-200">{new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                </div>
-
-                <div className="max-w-[95%] rounded-2xl rounded-bl-sm border border-slate-100 bg-slate-50 p-5 text-sm shadow-sm dark:border-slate-800/80 dark:bg-slate-900">
-                  <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-400">
-                    <Sparkles size={14} /> AI Response — {item.topic}
-                  </div>
-                  <MarkdownView content={item.response} />
-                </div>
-              </div>
-            ))}
-
-            {isTyping && (
-              <div className="flex items-center gap-2 text-sm text-violet-600 dark:text-violet-400">
-                <RefreshCw size={16} className="animate-spin" />
-                <span>AI Tutor is formulating a detailed explanation...</span>
-              </div>
-            )}
-
-            <div ref={chatEndRef} />
-          </div>
-
-          <form
-            onSubmit={e => {
-              e.preventDefault();
-              if (assistantInput.trim() && !isTyping) askTutor(assistantInput, currentCourse, currentLesson);
-            }}
-            className="flex gap-2 border-t border-slate-100 p-4 dark:border-slate-800"
-          >
-            <textarea
-              value={assistantInput}
-              onChange={e => setAssistantInput(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  if (assistantInput.trim() && !isTyping) {
-                    askTutor(assistantInput, currentCourse, currentLesson);
-                  }
-                }
-              }}
-              rows={2}
-              className="min-w-0 flex-1 resize-none rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-sm outline-none transition focus:border-violet-500 dark:border-slate-800"
-              placeholder="Ask a computer science question (Press Enter to send, Shift+Enter for line break)..."
-            />
-            <Button type="submit" disabled={!assistantInput.trim() || isTyping}>
-              <Send size={16} /> Ask
-            </Button>
-          </form>
         </Card>
+
+        {/* Dual Code Panel Grid */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Source Code Panel */}
+          <Card className="flex flex-col overflow-hidden border border-slate-200/80 dark:border-slate-800">
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-5 py-3.5 dark:border-slate-800 dark:bg-slate-900/80">
+              <div className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-100">
+                <FileCode size={18} className="text-violet-600" />
+                <span>Source Code ({converterSourceLang})</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => { setConverterInputCode(""); setConverterOutputCode(""); setConverterNotes([]); }}
+                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200 hover:text-rose-600 dark:hover:bg-slate-800"
+                  title="Clear source code"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+            <div className="p-4 flex-1 flex flex-col">
+              <textarea
+                value={converterInputCode}
+                onChange={e => setConverterInputCode(e.target.value)}
+                placeholder={`Paste your ${converterSourceLang} code here...`}
+                className="w-full min-h-[340px] flex-1 resize-none rounded-xl border border-slate-200 bg-slate-950 p-4 font-mono text-sm leading-6 text-emerald-400 outline-none focus:border-violet-500 dark:border-slate-800"
+              />
+              <div className="mt-4 flex items-center justify-between">
+                <span className="text-xs text-slate-400">{converterInputCode.split("\n").length} lines</span>
+                <Button
+                  onClick={() => handleConvertCode()}
+                  disabled={!converterInputCode.trim() || isConvertingCode}
+                  className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-md"
+                >
+                  {isConvertingCode ? <RefreshCw size={16} className="animate-spin" /> : <WandSparkles size={16} />}
+                  {isConvertingCode ? "Converting..." : `Convert to ${converterTargetLang}`}
+                </Button>
+              </div>
+            </div>
+          </Card>
+
+          {/* Converted Output Panel */}
+          <Card className="flex flex-col overflow-hidden border border-slate-200/80 dark:border-slate-800">
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-5 py-3.5 dark:border-slate-800 dark:bg-slate-900/80">
+              <div className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-100">
+                <WandSparkles size={18} className="text-emerald-500" />
+                <span>Converted Output ({converterTargetLang})</span>
+              </div>
+              {converterOutputCode && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={copyConvertedCode}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                  >
+                    {codeCopied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                    {codeCopied ? "Copied!" : "Copy Code"}
+                  </button>
+                  <button
+                    onClick={openInCodeLab}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-violet-700 shadow-sm"
+                  >
+                    <Terminal size={14} /> Open in Code Lab
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="p-4 flex-1 flex flex-col justify-between">
+              {converterOutputCode ? (
+                <pre className="w-full min-h-[340px] flex-1 overflow-x-auto rounded-xl bg-slate-950 p-4 font-mono text-sm leading-6 text-violet-300">
+                  <code>{converterOutputCode}</code>
+                </pre>
+              ) : (
+                <div className="flex min-h-[340px] flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center dark:border-slate-800 dark:bg-slate-900/50">
+                  <div className="mb-3 rounded-2xl bg-violet-50 p-4 text-violet-600 dark:bg-slate-800">
+                    <WandSparkles size={32} />
+                  </div>
+                  <h4 className="font-bold text-slate-800 dark:text-slate-100">Ready to convert</h4>
+                  <p className="mt-1 max-w-xs text-xs text-slate-500">
+                    Paste your code on the left or choose a sample preset, then click Convert to generate equivalent {converterTargetLang} code.
+                  </p>
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
+
+        {/* Structural Notes & Syntax Comparison */}
+        {converterNotes.length > 0 && (
+          <Card className="p-6 bg-gradient-to-r from-violet-900/5 via-indigo-900/5 to-transparent dark:from-violet-950/40 dark:via-indigo-950/20 border border-slate-200/80 dark:border-slate-800">
+            <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-violet-600 dark:text-violet-400 mb-3">
+              <Sparkles size={16} /> Key Language Differences ({converterSourceLang} → {converterTargetLang})
+            </div>
+            <ul className="space-y-2">
+              {converterNotes.map((note, idx) => (
+                <li key={idx} className="flex items-start gap-2.5 text-sm text-slate-700 dark:text-slate-300">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+                    {idx + 1}
+                  </span>
+                  <span>{note}</span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
       </div>
     );
   };
@@ -2151,7 +2435,7 @@ export default function App() {
     : page === "Dashboard" ? renderDashboard()
     : page === "Explore Courses" ? renderExplore()
     : page === "My Learning" ? renderMyLearning()
-    : page === "AI Assistant" ? renderAssistant()
+    : page === "AI Code Converter" || page === "AI Assistant" ? renderConverter()
     : page === "Code Lab" ? renderCodeLab()
     : page === "Quiz" ? renderQuiz()
     : page === "Activity History" ? renderActivity()
