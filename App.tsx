@@ -1135,25 +1135,83 @@ export default function App() {
     notify("Lesson completed! +25 XP");
   };
 
-  const askTutor = (question: string, contextCourse?: Course, contextLesson?: Lesson) => {
-    if (!current || !question.trim()) return;
+  const askTutor = async (question: string, contextCourse?: Course, contextLesson?: Lesson) => {
+    if (!current || !question.trim() || isTyping) return;
     const qText = question.trim();
     setAssistantInput("");
     setIsTyping(true);
 
-    setTimeout(() => {
-      const answer = responseFor(qText, current, contextCourse, contextLesson);
+    const contextPayload: Record<string, any> = {
+      level: current.level,
+      language: codeLanguage,
+    };
+
+    if (contextCourse || currentCourse) {
+      contextPayload.courseTitle = (contextCourse || currentCourse)?.title;
+    }
+    if (contextLesson || currentLesson) {
+      contextPayload.lessonTitle = (contextLesson || currentLesson)?.title;
+    }
+    if (page === "Code Lab" && code.trim()) {
+      contextPayload.code = code;
+    }
+
+    try {
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: qText,
+          context: contextPayload,
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        const errorText = data.error || `AI service returned status ${res.status}`;
+        updateUser(u => ({
+          ...u,
+          conversations: [...u.conversations, {
+            id: uid(), userId: u.id, question: qText,
+            response: `⚠️ **AI Service Notice**\n\n${errorText}`,
+            topic: "System Notice",
+            courseId: contextCourse?.id || currentCourse?.id,
+            lessonId: contextLesson?.id || currentLesson?.id,
+            timestamp: dateNow(),
+          }]
+        }));
+        notify(errorText);
+      } else {
+        updateUser(u => ({
+          ...u,
+          conversations: [...u.conversations, {
+            id: uid(), userId: u.id, question: qText,
+            response: data.text || "No response received from AI service.",
+            topic: data.topic || "Computer Science",
+            courseId: contextCourse?.id || currentCourse?.id,
+            lessonId: contextLesson?.id || currentLesson?.id,
+            timestamp: dateNow(),
+          }],
+          activities: [...u.activities, activity(u, `Asked AI about ${data.topic || "CS"}`, qText, "ai-question")],
+        }));
+        notify("AI Tutor answered your question.");
+      }
+    } catch (err: any) {
+      const errMsg = `Unable to reach AI service: ${err.message || "Network error"}`;
       updateUser(u => ({
         ...u,
         conversations: [...u.conversations, {
-          id: uid(), userId: u.id, question: qText, response: answer.text, topic: answer.topic,
-          courseId: contextCourse?.id, lessonId: contextLesson?.id, timestamp: dateNow(),
-        }],
-        activities: [...u.activities, activity(u, `Asked AI about ${answer.topic}`, qText, "ai-question")],
+          id: uid(), userId: u.id, question: qText,
+          response: `⚠️ **Network Error**\n\n${errMsg}`,
+          topic: "Connection Error",
+          timestamp: dateNow(),
+        }]
       }));
+      notify(errMsg);
+    } finally {
       setIsTyping(false);
-      notify("Your question was added to Learning Memory.");
-    }, 200);
+    }
   };
 
   const clearChatHistory = () => {
@@ -1218,12 +1276,12 @@ export default function App() {
           <Button onClick={() => goPage("Explore Courses")} className="bg-gradient-to-r from-violet-500 to-indigo-600 !text-white hover:from-violet-600 hover:to-indigo-700 shadow-lg shadow-violet-900/30">
             {t("exploreBtn")} <ArrowRight size={16} />
           </Button>
-          <Button variant="secondary" onClick={() => goPage("Code Lab")} className="border-slate-700 bg-slate-900/80 text-white hover:bg-slate-800 backdrop-blur-md">
+          <button onClick={() => goPage("Code Lab")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white shadow-sm backdrop-blur-md transition hover:bg-white/20 hover:border-white/40 focus:outline-none focus:ring-2 focus:ring-violet-400">
             <Code2 size={16} /> {t("codeLab")}
-          </Button>
-          <Button variant="secondary" onClick={() => goPage("AI Assistant")} className="border-slate-700 bg-slate-900/80 text-violet-300 hover:bg-slate-800 backdrop-blur-md">
-            <Sparkles size={16} /> Ask AI Tutor
-          </Button>
+          </button>
+          <button onClick={() => goPage("AI Assistant")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-violet-400/40 bg-violet-500/20 px-4 py-2.5 text-sm font-semibold text-violet-200 shadow-sm backdrop-blur-md transition hover:bg-violet-500/30 hover:border-violet-400/60 focus:outline-none focus:ring-2 focus:ring-violet-400">
+            <Sparkles size={16} className="text-violet-300" /> Ask AI Tutor
+          </button>
         </div>
       </div>
       <div className="absolute bottom-6 right-8 hidden text-violet-400/20 lg:block">
@@ -1501,15 +1559,24 @@ export default function App() {
           <form
             onSubmit={e => {
               e.preventDefault();
-              if (assistantInput.trim()) askTutor(assistantInput, currentCourse, currentLesson);
+              if (assistantInput.trim() && !isTyping) askTutor(assistantInput, currentCourse, currentLesson);
             }}
             className="flex gap-2 border-t border-slate-100 p-4 dark:border-slate-800"
           >
-            <input
+            <textarea
               value={assistantInput}
               onChange={e => setAssistantInput(e.target.value)}
-              className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-sm outline-none transition focus:border-violet-500 dark:border-slate-800"
-              placeholder="Ask a computer science question (e.g. Write a fibonacci code)..."
+              onKeyDown={e => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  if (assistantInput.trim() && !isTyping) {
+                    askTutor(assistantInput, currentCourse, currentLesson);
+                  }
+                }
+              }}
+              rows={2}
+              className="min-w-0 flex-1 resize-none rounded-xl border border-slate-200 bg-transparent px-4 py-3 text-sm outline-none transition focus:border-violet-500 dark:border-slate-800"
+              placeholder="Ask a computer science question (Press Enter to send, Shift+Enter for line break)..."
             />
             <Button type="submit" disabled={!assistantInput.trim() || isTyping}>
               <Send size={16} /> Ask

@@ -7,14 +7,25 @@ declare const Buffer: any;
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const executionApiKey = env.EXECUTION_API_KEY || env.EXECUTION_SERVICE_KEY || env.RAPIDAPI_KEY || env.JUDGE0_API_KEY || (process.env && process.env.EXECUTION_API_KEY) || '';
+  const aiApiKey = env.AI_SERVICE_KEY || env.GEMINI_API_KEY || env.OPENAI_API_KEY || (process.env && process.env.AI_SERVICE_KEY) || '';
+
   if (process.env) {
     process.env.EXECUTION_API_KEY = executionApiKey;
+    process.env.AI_SERVICE_KEY = env.AI_SERVICE_KEY || '';
+    process.env.GEMINI_API_KEY = env.GEMINI_API_KEY || '';
+    process.env.OPENAI_API_KEY = env.OPENAI_API_KEY || '';
   }
 
   if (executionApiKey) {
     console.log('[Coders Hub Backend] Code Execution API Key status: PRESENT');
   } else {
     console.warn('[Coders Hub Backend] Code Execution API Key status: ABSENT');
+  }
+
+  if (aiApiKey) {
+    console.log('[Coders Hub Backend] AI Assistant API Key status: PRESENT');
+  } else {
+    console.log('[Coders Hub Backend] AI Assistant API Key status: NOT_CONFIGURED (Requires GEMINI_API_KEY or AI_SERVICE_KEY in .env)');
   }
 
   return {
@@ -24,6 +35,7 @@ export default defineConfig(({ mode }) => {
       {
         name: 'execution-backend-proxy',
         configureServer(server: any) {
+          // Code Execution Engine Route
           server.middlewares.use('/api/execute', (req: any, res: any) => {
             if (req.method !== 'POST') {
               res.statusCode = 405;
@@ -93,7 +105,6 @@ export default defineConfig(({ mode }) => {
                 let responsePayload: any = {};
 
                 if (statusId === 6) {
-                  // Compilation Error
                   responsePayload = {
                     compile: {
                       code: 1,
@@ -103,7 +114,6 @@ export default defineConfig(({ mode }) => {
                     run: { code: 1, stdout: "", stderr: "" }
                   };
                 } else if (statusId === 5) {
-                  // Time Limit Exceeded
                   responsePayload = {
                     compile: { code: 0 },
                     run: {
@@ -114,7 +124,6 @@ export default defineConfig(({ mode }) => {
                     }
                   };
                 } else if (statusId !== 3) {
-                  // Runtime Error
                   responsePayload = {
                     compile: { code: 0 },
                     run: {
@@ -124,7 +133,6 @@ export default defineConfig(({ mode }) => {
                     }
                   };
                 } else {
-                  // Success
                   responsePayload = {
                     compile: { code: 0 },
                     run: {
@@ -142,6 +150,125 @@ export default defineConfig(({ mode }) => {
                 res.statusCode = 500;
                 res.setHeader('Content-Type', 'application/json');
                 res.end(JSON.stringify({ error: err.message || 'Execution backend error' }));
+              }
+            });
+          });
+
+          // AI Tutor Real Backend Route
+          server.middlewares.use('/api/ai', (req: any, res: any) => {
+            if (req.method !== 'POST') {
+              res.statusCode = 405;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ error: 'Method Not Allowed' }));
+              return;
+            }
+
+            let bodyStr = '';
+            req.on('data', (chunk: any) => {
+              bodyStr += chunk.toString();
+            });
+
+            req.on('end', async () => {
+              try {
+                const { message, context } = JSON.parse(bodyStr || '{}');
+
+                if (!message || typeof message !== 'string' || !message.trim()) {
+                  res.statusCode = 400;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ error: 'Question message cannot be empty.' }));
+                  return;
+                }
+
+                const userMsg = message.trim();
+                const aiKey = process.env.AI_SERVICE_KEY || process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY || '';
+                const geminiKey = process.env.GEMINI_API_KEY || (aiKey.startsWith('AIza') ? aiKey : '');
+                const openAiKey = process.env.OPENAI_API_KEY || (aiKey.startsWith('sk-') ? aiKey : '');
+
+                let systemPrompt = "You are the AI Learning Tutor for Coders Hub, an interactive computer science platform. Explain concepts clearly, concisely, and accurately. Format your response in clean Markdown with code blocks where appropriate.";
+                if (context) {
+                  if (context.courseTitle) systemPrompt += `\nCourse Context: ${context.courseTitle}`;
+                  if (context.lessonTitle) systemPrompt += `\nLesson Context: ${context.lessonTitle}`;
+                  if (context.language) systemPrompt += `\nProgramming Language: ${context.language}`;
+                  if (context.level) systemPrompt += `\nLearner Skill Level: ${context.level}`;
+                  if (context.code) systemPrompt += `\nCurrent Code in Code Lab:\n\`\`\`${context.language || ''}\n${context.code}\n\`\`\``;
+                }
+
+                // 1. Try Gemini API if key is present
+                if (geminiKey) {
+                  const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\nUser Question: ${userMsg}` }] }]
+                    })
+                  });
+
+                  if (geminiRes.ok) {
+                    const gData = await geminiRes.json();
+                    const text = gData.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (text) {
+                      res.statusCode = 200;
+                      res.setHeader('Content-Type', 'application/json');
+                      res.end(JSON.stringify({ text, topic: context?.lessonTitle || "Computer Science" }));
+                      return;
+                    }
+                  } else if (geminiRes.status === 401 || geminiRes.status === 403) {
+                    res.statusCode = 401;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ error: 'AI service authentication failed (HTTP 401/403). Please check server GEMINI_API_KEY.' }));
+                    return;
+                  }
+                }
+
+                // 2. Try OpenAI API if key is present
+                if (openAiKey) {
+                  const openAiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${openAiKey}`
+                    },
+                    body: JSON.stringify({
+                      model: 'gpt-3.5-turbo',
+                      messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userMsg }
+                      ]
+                    })
+                  });
+
+                  if (openAiRes.ok) {
+                    const oData = await openAiRes.json();
+                    const text = oData.choices?.[0]?.message?.content;
+                    if (text) {
+                      res.statusCode = 200;
+                      res.setHeader('Content-Type', 'application/json');
+                      res.end(JSON.stringify({ text, topic: context?.lessonTitle || "Computer Science" }));
+                      return;
+                    }
+                  } else if (openAiRes.status === 401) {
+                    res.statusCode = 401;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.end(JSON.stringify({ error: 'AI service authentication failed (HTTP 401). Please check server OPENAI_API_KEY.' }));
+                    return;
+                  }
+                }
+
+                // 3. Fallback error when no key is configured
+                if (!aiKey) {
+                  res.statusCode = 401;
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(JSON.stringify({ error: 'AI service authentication is not configured. Please set GEMINI_API_KEY or AI_SERVICE_KEY in server .env file.' }));
+                  return;
+                }
+
+                res.statusCode = 500;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: 'Unable to reach AI service. Please check your network connection.' }));
+              } catch (err: any) {
+                res.statusCode = 500;
+                res.setHeader('Content-Type', 'application/json');
+                res.end(JSON.stringify({ error: err.message || 'AI backend error' }));
               }
             });
           });
