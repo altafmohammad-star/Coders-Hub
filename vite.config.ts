@@ -7,13 +7,15 @@ declare const Buffer: any;
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const executionApiKey = env.EXECUTION_API_KEY || env.EXECUTION_SERVICE_KEY || env.RAPIDAPI_KEY || env.JUDGE0_API_KEY || (process.env && process.env.EXECUTION_API_KEY) || '';
-  const aiApiKey = env.AI_SERVICE_KEY || env.GEMINI_API_KEY || env.OPENAI_API_KEY || (process.env && process.env.AI_SERVICE_KEY) || '';
+  const geminiApiKey = env.GEMINI_API_KEY || env.AI_SERVICE_KEY || (process.env && (process.env.GEMINI_API_KEY || process.env.AI_SERVICE_KEY)) || '';
+  const openAiApiKey = env.OPENAI_API_KEY || (process.env && process.env.OPENAI_API_KEY) || '';
+  const aiApiKey = geminiApiKey || openAiApiKey;
 
   if (process.env) {
     process.env.EXECUTION_API_KEY = executionApiKey;
-    process.env.AI_SERVICE_KEY = env.AI_SERVICE_KEY || '';
-    process.env.GEMINI_API_KEY = env.GEMINI_API_KEY || '';
-    process.env.OPENAI_API_KEY = env.OPENAI_API_KEY || '';
+    process.env.GEMINI_API_KEY = geminiApiKey;
+    process.env.AI_SERVICE_KEY = env.AI_SERVICE_KEY || geminiApiKey;
+    process.env.OPENAI_API_KEY = openAiApiKey;
   }
 
   if (executionApiKey) {
@@ -23,7 +25,7 @@ export default defineConfig(({ mode }) => {
   }
 
   if (aiApiKey) {
-    console.log('[Coders Hub Backend] AI Assistant API Key status: PRESENT');
+    console.log(`[Coders Hub Backend] AI Assistant API Key status: PRESENT (Provider: ${geminiApiKey ? 'Gemini' : 'OpenAI'}, Key Length: ${aiApiKey.length})`);
   } else {
     console.log('[Coders Hub Backend] AI Assistant API Key status: NOT_CONFIGURED (Requires GEMINI_API_KEY or AI_SERVICE_KEY in .env)');
   }
@@ -180,9 +182,9 @@ export default defineConfig(({ mode }) => {
                 }
 
                 const userMsg = message.trim();
-                const aiKey = process.env.AI_SERVICE_KEY || process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY || '';
-                const geminiKey = process.env.GEMINI_API_KEY || (aiKey.startsWith('AIza') ? aiKey : '');
-                const openAiKey = process.env.OPENAI_API_KEY || (aiKey.startsWith('sk-') ? aiKey : '');
+                const geminiKey = process.env.GEMINI_API_KEY || process.env.AI_SERVICE_KEY || '';
+                const openAiKey = process.env.OPENAI_API_KEY || '';
+                const aiKey = geminiKey || openAiKey;
 
                 let systemPrompt = "You are the AI Learning Tutor for Coders Hub, an interactive computer science platform. Explain concepts clearly, concisely, and accurately. Format your response in clean Markdown with code blocks where appropriate.";
                 if (context) {
@@ -195,27 +197,44 @@ export default defineConfig(({ mode }) => {
 
                 // 1. Try Gemini API if key is present
                 if (geminiKey) {
-                  const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\nUser Question: ${userMsg}` }] }]
-                    })
-                  });
+                  const modelsToTry = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro'];
+                  let lastErr: any = null;
 
-                  if (geminiRes.ok) {
-                    const gData = await geminiRes.json();
-                    const text = gData.candidates?.[0]?.content?.parts?.[0]?.text;
-                    if (text) {
-                      res.statusCode = 200;
-                      res.setHeader('Content-Type', 'application/json');
-                      res.end(JSON.stringify({ text, topic: context?.lessonTitle || "Computer Science" }));
-                      return;
+                  for (const model of modelsToTry) {
+                    try {
+                      const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\nUser Question: ${userMsg}` }] }]
+                        })
+                      });
+
+                      if (geminiRes.ok) {
+                        const gData = await geminiRes.json();
+                        const text = gData.candidates?.[0]?.content?.parts?.[0]?.text;
+                        if (text) {
+                          res.statusCode = 200;
+                          res.setHeader('Content-Type', 'application/json');
+                          res.end(JSON.stringify({ text, topic: context?.lessonTitle || "Computer Science" }));
+                          return;
+                        }
+                      } else {
+                        const gErr = await geminiRes.json().catch(() => ({}));
+                        lastErr = { status: geminiRes.status, message: gErr.error?.message || `Gemini API returned status ${geminiRes.status}` };
+                      }
+                    } catch (e: any) {
+                      lastErr = { status: 500, message: e.message };
                     }
-                  } else if (geminiRes.status === 401 || geminiRes.status === 403) {
-                    res.statusCode = 401;
+                  }
+
+                  if (lastErr) {
+                    res.statusCode = lastErr.status || 400;
                     res.setHeader('Content-Type', 'application/json');
-                    res.end(JSON.stringify({ error: 'AI service authentication failed (HTTP 401/403). Please check server GEMINI_API_KEY.' }));
+                    res.end(JSON.stringify({
+                      status: lastErr.status,
+                      error: lastErr.message
+                    }));
                     return;
                   }
                 }
